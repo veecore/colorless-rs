@@ -1,0 +1,35 @@
+[workspace]
+members = [
+    "crates/cps-signal",
+    "crates/cps-try",
+]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+authors = ["Victor <123157458+veecore@users.noreply.github.com>"]
+
+[workspace.dependencies]
+# Internal workspace crates
+cps-signal = { path = "crates/cps-signal", version = "0.1.0" }
+cps-try = { path = "crates/cps-try", version = "0.1.0" }
+colorless-core = { path = "crates/colorless-core", version = "0.1.0" }
+colorless-std = { path = "crates/colorless-std", version = "0.1.0" }
+colorless-prepare = { path = "crates/colorless-prepare", version = "0.1.0" }
+colorless-cps = { path = "crates/colorless-cps", version = "0.1.0" }
+colorless-macros = { path = "crates/colorless-macros", version = "0.1.0" }
+
+# External AST & compiler tooling
+syn = { version = "3.0.4", features = ["full", "extra-traits", "visit", "visit-mut"] }
+quote = "1.0.47"
+proc-macro2 = "1.0.107"
+
+# Benchmarking & Testing
+criterion = "0.8.2"
+tokio = { version = "1.37", features = ["full"] }
+
+[workspace.lints.rust]
+unused_must_use = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(nightly)'] }
