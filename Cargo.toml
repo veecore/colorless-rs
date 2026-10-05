@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "crates/runtime/*",
+    "crates/library/*",
     "crates/compiler/*",
     "crates/facade",
 ]
@@ -13,15 +13,15 @@ license = "MIT OR Apache-2.0"
 authors = ["Victor <123157458+veecore@users.noreply.github.com>"]
 
 [workspace.dependencies]
-# Runtime crates
-cps-signal = { path = "crates/runtime/signal", version = "0.1.0" }
-cps-try = { path = "crates/runtime/try", version = "0.1.0" }
-colorless-core = { path = "crates/runtime/core", version = "0.1.0" }
-colorless-std = { path = "crates/runtime/std", version = "0.1.0" }
+# Library crates
+cps-signal = { path = "crates/library/signal", version = "0.1.0" }
+cps-try = { path = "crates/library/try", version = "0.1.0" }
+colorless-core = { path = "crates/library/core", version = "0.1.0" }
+colorless-std = { path = "crates/library/std", version = "0.1.0" }
 
 # Compiler & macro crates
 colorless-prepare = { path = "crates/compiler/prepare", version = "0.1.0" }
-colorless-cps = { path = "crates/compiler/cps", version = "0.1.0" }
+colorless-lower = { path = "crates/compiler/lower", version = "0.1.0" }
 colorless-macros = { path = "crates/compiler/macros", version = "0.1.0" }
 
 # Public facade crate

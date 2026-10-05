@@ -54,9 +54,11 @@ pub trait Try: Sized {
     /// The residual type passed to [`FromResidual::from_residual`] on early exit.
     type Residual;
 
-    // TODO: Result is more common than ControlFlow and I hold the believe that
-    //  making this Result would be more performant - micro but yeah
     /// Splits `self` into either a continuation output or an early-exit residual.
+    ///
+    /// Following RFC 3058, this returns [`ControlFlow`] which has identical ABI
+    /// and zero-cost machine representation to [`Result`] while cleanly modeling
+    /// early returns for non-error types like [`Option`] and [`Poll`].
     fn branch(self) -> ControlFlow<Self::Residual, Self::Output>;
 }
 

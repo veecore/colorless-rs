@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "colorless-cps"
+name = "colorless-lower"
 version = "0.1.0"
 dependencies = [
  "cps-signal",
@@ -34,7 +34,7 @@ dependencies = [
 name = "colorless-macros"
 version = "0.1.0"
 dependencies = [
- "colorless-cps",
+ "colorless-lower",
  "colorless-prepare",
  "proc-macro2",
  "quote",

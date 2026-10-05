@@ -1,4 +1,4 @@
-//! # `colorless-cps`
+//! # `colorless-lower`
 //!
 //! A compiler-grade library for transforming Rust `syn` syntax trees into
 //! **Continuation-Passing Style (CPS)** and **A-Normal Form (ANF)**.
