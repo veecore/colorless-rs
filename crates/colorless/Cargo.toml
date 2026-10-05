@@ -1,0 +1,19 @@
+[package]
+name = "colorless"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+colorless-core = { workspace = true }
+colorless-std = { workspace = true, optional = true }
+colorless-macros = { workspace = true }
+
+[features]
+default = ["std"]
+alloc = ["colorless-core/alloc", "colorless-std?/alloc"]
+std = ["colorless-core/std", "dep:colorless-std", "colorless-std/std"]
