@@ -7,6 +7,7 @@
 //! - [`iter`]: Colored iterators ([`iter::ColoredIterator`]) that evaluate synchronously
 //!   in `Identity` and asynchronously as unboxed streams in `Async`.
 //! - [`task`]: Cooperative scheduling and task primitives.
+//! - [`io`]: Color-generic I/O primitives.
 
 #![no_std]
 
@@ -15,14 +16,7 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
-pub mod iter {
-    //! Colored iterator abstractions and adapters.
-}
-
-pub mod ops {
-    //! Function traits, closures, and higher-order colored combinators.
-}
-
-pub mod task {
-    //! Cooperative scheduling across execution colors.
-}
+pub mod io;
+pub mod iter;
+pub mod ops;
+pub mod task;

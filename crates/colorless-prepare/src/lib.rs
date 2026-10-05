@@ -5,6 +5,9 @@
 
 use proc_macro::TokenStream;
 
+mod bindings;
+mod loops;
+
 #[proc_macro_attribute]
 pub fn prepare(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item

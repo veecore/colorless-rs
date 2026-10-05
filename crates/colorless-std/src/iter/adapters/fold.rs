@@ -1,0 +1,1 @@
+//! `.fold(...)` iterator consumer/adapter.
