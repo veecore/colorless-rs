@@ -18,7 +18,7 @@ workspace = true
 colorless-core = { workspace = true }
 colorless-rt = { workspace = true }
 colorless-std = { workspace = true, optional = true }
-colorless-macros = { workspace = true, default-features = false }
+colorless-macros = { workspace = true }
 
 [features]
 default = ["std", "autocomplete"]
