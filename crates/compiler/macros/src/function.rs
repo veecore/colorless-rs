@@ -28,7 +28,7 @@ fn expand_fn(config: &Config, mut func: ItemFn, redefine_c: bool) -> Result<Item
         .get_or_create_generic_color(&func.sig.generics)?;
 
     validate_generic_signature(&func.sig)?;
-    core::debug_assert_matches!(config.drop_timing, DropTiming::Relaxed);
+    core::assert_matches!(config.drop_timing, DropTiming::Relaxed);
 
     let emit = expand_block(*func.block, config, &parse_quote!(#color_generic), true)?;
 

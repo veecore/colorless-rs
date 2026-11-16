@@ -5,8 +5,8 @@
 //! cargo run -p colorless --example stream_parser --features relaxed-drop
 //! ```
 
-use colorless::function::{from_async_fn, from_fn, ColoredFnMut};
-use colorless::{colorless, AsyncExt, IdentityExt};
+use colorless::function::{ColoredFnMut, from_async_fn, from_fn};
+use colorless::{AsyncExt, IdentityExt, colorless};
 use colorless_core::test_util::block_on_local_test;
 
 /// A key-value record parsed from the stream.

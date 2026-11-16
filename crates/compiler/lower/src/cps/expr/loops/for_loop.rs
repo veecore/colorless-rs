@@ -44,11 +44,7 @@ fn lower_for_loop(mut f: ExprForLoop, ctx: &mut CpsCtx) -> ExprMatch {
     desugar_for_loop_(f, iter_placeholder, ctx)
 }
 
-fn desugar_for_loop_(
-    mut f: ExprForLoop,
-    iter_placeholder: Ident,
-    ctx: &mut CpsCtx,
-) -> ExprMatch {
+fn desugar_for_loop_(mut f: ExprForLoop, iter_placeholder: Ident, ctx: &mut CpsCtx) -> ExprMatch {
     let colorless = is_colorless_for_loop(&mut f.attrs);
 
     let iter_next: Expr = if colorless {
@@ -68,7 +64,7 @@ fn desugar_for_loop_(
         loop_token: Loop(f.for_token.span),
         body: make_syn_block(iter_match_expr),
     });
-    
+
     // TODO: Use linear_borrow_loop instead... add as ref_mut
     let convert = if colorless {
         let mut pin_borrow: Vec<Stmt> = parse_quote! {
@@ -76,7 +72,7 @@ fn desugar_for_loop_(
             borrow_mut!(#iter_placeholder);
         };
         pin_borrow.push(make_stmt_expr(l));
-        // FIXME... 
+        // FIXME...
         pin_borrow.push(parse_quote! {
             end_borrow_mut!(#iter_placeholder);
         });
