@@ -1,0 +1,12 @@
+error[E0308]: mismatched types
+ --> tests/ui/fail/colorless_for_loop.rs:4:1
+  |
+4 | #[colorless(C)]
+  | ^^^^^^^^^^^^^^^
+  | |
+  | expected `Shadowed`, found `LocalCell<_>`
+  | this expression has type `colorless::__compiler::colorless_rt::loop_::Shadowed`
+  |
+  = note: expected struct `colorless::__compiler::colorless_rt::loop_::Shadowed`
+             found struct `colorless::__compiler::colorless_rt::borrow::LocalCell<_>`
+  = note: this error originates in the macro `end_borrow_mut` which comes from the expansion of the macro `__continuation_2` (in Nightly builds, run with -Z macro-backtrace for more info)
