@@ -1,12 +1,18 @@
-error[E0308]: mismatched types
- --> tests/ui/fail/colorless_for_loop.rs:4:1
-  |
-4 | #[colorless(C)]
-  | ^^^^^^^^^^^^^^^
-  | |
-  | expected `Shadowed`, found `LocalCell<_>`
-  | this expression has type `colorless::__compiler::colorless_rt::loop_::Shadowed`
-  |
-  = note: expected struct `colorless::__compiler::colorless_rt::loop_::Shadowed`
-             found struct `colorless::__compiler::colorless_rt::borrow::LocalCell<_>`
-  = note: this error originates in the macro `end_borrow_mut` which comes from the expansion of the macro `__continuation_2` (in Nightly builds, run with -Z macro-backtrace for more info)
+error[E0382]: borrow of moved value: `iter`
+  --> tests/ui/fail/colorless_for_loop.rs:25:5
+   |
+20 |     let mut iter = vec![1].into_iter();
+   |         -------- move occurs because `iter` has type `std::vec::IntoIter<i32>`, which does not implement the `Copy` trait
+21 |     for _ in iter {
+   |              ---- `iter` moved due to this implicit call to `.into_iter()`
+...
+25 |     iter.next();
+   |     ^^^^ value borrowed here after move
+   |
+   = note: a for loop advances the iterator for you, the result is stored in its pattern
+   = help: if you want to call `next` on a iterator within the loop, consider using `while let`
+note: the `for` loop is desugared into a call to `std::iter::IntoIterator::into_iter`, which takes ownership of the receiver `self`, which moves `iter`
+  --> $RUST/core/src/iter/traits/collect.rs
+   |
+   |     fn into_iter(self) -> Self::IntoIter;
+   |                  ^^^^
