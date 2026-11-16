@@ -18,7 +18,7 @@ pub fn expand(input: ColorInput) -> Result<TokenStream> {
     let config = input.config;
     let block = input.block;
 
-    core::debug_assert_matches!(config.drop_timing, DropTiming::Relaxed);
+    core::assert_matches!(config.drop_timing, DropTiming::Relaxed);
 
     let color_type = match &config.color {
         Color::Generic(g) => {
@@ -43,7 +43,7 @@ pub fn expand_block(
     color_type: &Type,
     capture: bool,
 ) -> Result<Block> {
-    core::debug_assert_matches!(config.drop_timing, DropTiming::Relaxed);
+    core::assert_matches!(config.drop_timing, DropTiming::Relaxed);
 
     let crate_path = config.crate_path.clone();
 
