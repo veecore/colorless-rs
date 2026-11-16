@@ -4,16 +4,76 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description.workspace = true
+readme.workspace = true
+rust-version.workspace = true
+keywords.workspace = true
+categories.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
 
 [dependencies]
 colorless-core = { workspace = true }
+colorless-rt = { workspace = true }
 colorless-std = { workspace = true, optional = true }
-colorless-macros = { workspace = true }
+colorless-macros = { workspace = true, default-features = false }
 
 [features]
-default = ["std"]
-alloc = ["colorless-core/alloc", "colorless-std?/alloc"]
-std = ["colorless-core/std", "dep:colorless-std", "colorless-std/std"]
+default = ["std", "autocomplete"]
+relaxed-drop = ["colorless-macros/relaxed-drop"]
+autocomplete = ["colorless-macros/autocomplete"]
+compiler-cliff-probe = []
+
+alloc = ["colorless-core/alloc", "colorless-rt/alloc", "colorless-std?/alloc"]
+std = ["colorless-core/std", "colorless-rt/std", "dep:colorless-std", "colorless-std/std"]
+
+[dev-dependencies]
+trybuild = { workspace = true }
+criterion = { workspace = true, features = ["async_tokio"] }
+
+[[bench]]
+name = "branch"
+path = "benches/branch.rs"
+harness = false
+required-features = ["relaxed-drop"]
+
+[[bench]]
+name = "cps"
+path = "benches/cps.rs"
+harness = false
+required-features = ["relaxed-drop"]
+
+[[bench]]
+name = "loops"
+path = "benches/loops.rs"
+harness = false
+required-features = ["relaxed-drop"]
+
+[[bench]]
+name = "one_of_4"
+path = "benches/one_of_4.rs"
+harness = false
+required-features = ["relaxed-drop"]
+
+[[bench]]
+name = "one_of_12"
+path = "benches/one_of_12.rs"
+harness = false
+required-features = ["relaxed-drop"]
+
+[[example]]
+name = "simple_pipeline"
+path = "examples/simple_pipeline.rs"
+required-features = ["relaxed-drop"]
+
+[[example]]
+name = "retry_with_fallback"
+path = "examples/retry_with_fallback.rs"
+required-features = ["relaxed-drop"]
+
+[[example]]
+name = "stream_parser"
+path = "examples/stream_parser.rs"
+required-features = ["relaxed-drop"]

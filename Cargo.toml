@@ -5,24 +5,33 @@ members = [
     "crates/facade",
 ]
 resolver = "3"
+exclude = ["crates/compiler/inference"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["Victor <123157458+veecore@users.noreply.github.com>"]
+repository = "https://github.com/veecore/colorless-rs"
+description = "Zero-cost building blocks and compiler support for function coloring in Rust"
+readme = "README.md"
+rust-version = "1.95"
+keywords = ["async", "cps", "function-coloring", "zero-cost"]
+categories = ["asynchronous", "concurrency", "no-std", "rust-patterns"]
 
 [workspace.dependencies]
 # Library crates
 cps-signal = { path = "crates/library/signal", version = "0.1.0" }
 cps-try = { path = "crates/library/try", version = "0.1.0" }
 colorless-core = { path = "crates/library/core", version = "0.1.0" }
+colorless-rt = { path = "crates/library/rt", version = "0.1.0" }
 colorless-std = { path = "crates/library/std", version = "0.1.0" }
 
 # Compiler & macro crates
-colorless-prepare = { path = "crates/compiler/prepare", version = "0.1.0" }
 colorless-lower = { path = "crates/compiler/lower", version = "0.1.0" }
+colorless-codegen = { path = "crates/compiler/codegen", version = "0.1.0" }
 colorless-macros = { path = "crates/compiler/macros", version = "0.1.0" }
+dev-macros = { path = "crates/compiler/dev-macros" }
 
 # Public facade crate
 colorless = { path = "crates/facade", version = "0.1.0" }
@@ -34,7 +43,10 @@ proc-macro2 = "1.0.107"
 
 # Benchmarking & Testing
 criterion = "0.8.2"
-tokio = { version = "1.37", features = ["full"] }
+tokio = { version = "1.37", default-features = false, features = ["rt"] }
+futures-io = { version = "0.3", default-features = false, features = ["std"] }
+futures-core = { version = "0.3", default-features = false }
+trybuild = "1.0.122"
 
 [workspace.lints.rust]
 unused_must_use = "warn"

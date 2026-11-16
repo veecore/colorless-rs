@@ -1,8 +1,8 @@
 //! Concrete signal level aliases (`L1Signal` through `L9Signal`) and capability implementations.
 
-use crate::level0::{L0Signal, Never};
 use crate::level_n::LnSignal;
 use crate::traits::*;
+use crate::{L0Signal, Never};
 
 macro_rules! impl_local_traits {
     (
@@ -120,7 +120,8 @@ macro_rules! define_loop_signal {
         /// A signal type with no signal that propagates to an outer scope.
         pub type $no_outer<$LB, $CP> = $signal<$LB, $CP>;
         pub type $no_outer_no_continue_parent<$LB> = $signal<$LB, Never>;
-        /// A signal type that cannot propagate outward and cannot break from the current loop.
+        /// A signal type that cannot propagate outward and cannot break
+        /// from the current loop.
         pub type $no_outer_no_break_local<$CP> = $signal<Never, $CP>;
         pub type $no_outer_no_break_local_no_continue_parent = $signal<Never, Never>;
 
@@ -128,7 +129,7 @@ macro_rules! define_loop_signal {
             /// Creates a signal that breaks from the current loop.
             #[inline(always)]
             pub const fn $break_local(b: $LB) -> Self {
-                Self::BreakLocal(b)
+                Self::Break(b)
             }
 
             /// Creates a signal that continues the immediately enclosing loop.
@@ -179,9 +180,9 @@ macro_rules! define_loop_signal {
 define_loop_signal! {
     1
     L1SignalNoOuter;
-    L1SignalNoOuterNoBreakLocal;
+    L1SignalNoOuterNoBreak;
     L1SignalNoOuterNoContinueParent;
-    L1SignalNoOuterNoBreakLocalNoContinueParent;
+    L1SignalNoOuterNoBreakNoContinueParent;
 
     L1Signal(L0Signal)
         (break_1(B1): CanBreak1, continue_0(C0): CanContinue0)
@@ -190,9 +191,9 @@ define_loop_signal! {
 define_loop_signal! {
     2
     L2SignalNoOuter;
-    L2SignalNoOuterNoBreakLocal;
+    L2SignalNoOuterNoBreak;
     L2SignalNoOuterNoContinueParent;
-    L2SignalNoOuterNoBreakLocalNoContinueParent;
+    L2SignalNoOuterNoBreakNoContinueParent;
 
     L2Signal(L1Signal)
         (break_2(B2): CanBreak2, continue_1(C1): CanContinue1)
@@ -202,9 +203,9 @@ define_loop_signal! {
 define_loop_signal! {
     3
     L3SignalNoOuter;
-    L3SignalNoOuterNoBreakLocal;
+    L3SignalNoOuterNoBreak;
     L3SignalNoOuterNoContinueParent;
-    L3SignalNoOuterNoBreakLocalNoContinueParent;
+    L3SignalNoOuterNoBreakNoContinueParent;
 
     L3Signal(L2Signal)
         (break_3(B3): CanBreak3, continue_2(C2): CanContinue2)
@@ -215,9 +216,9 @@ define_loop_signal! {
 define_loop_signal! {
     4
     L4SignalNoOuter;
-    L4SignalNoOuterNoBreakLocal;
+    L4SignalNoOuterNoBreak;
     L4SignalNoOuterNoContinueParent;
-    L4SignalNoOuterNoBreakLocalNoContinueParent;
+    L4SignalNoOuterNoBreakNoContinueParent;
 
     L4Signal(L3Signal)
         (break_4(B4): CanBreak4, continue_3(C3): CanContinue3)
@@ -228,10 +229,10 @@ define_loop_signal! {
 
 define_loop_signal! {
     5
-    L5SignalNoOuter;
-    L5SignalNoOuterNoBreakLocal;
+    L5ignalNoOuter;
+    L51SignalNoOuterNoBreak;
     L5SignalNoOuterNoContinueParent;
-    L5SignalNoOuterNoBreakLocalNoContinueParent;
+    L5SignalNoOuterNoBreakNoContinueParent;
 
     L5Signal(L4Signal)
         (break_5(B5): CanBreak5, continue_4(C4): CanContinue4)
@@ -244,9 +245,9 @@ define_loop_signal! {
 define_loop_signal! {
     6
     L6SignalNoOuter;
-    L6SignalNoOuterNoBreakLocal;
+    L6SignalNoOuterNoBreak;
     L6SignalNoOuterNoContinueParent;
-    L6SignalNoOuterNoBreakLocalNoContinueParent;
+    L6SignalNoOuterNoBreakNoContinueParent;
 
     L6Signal(L5Signal)
         (break_6(B6): CanBreak6, continue_5(C5): CanContinue5)
@@ -260,9 +261,9 @@ define_loop_signal! {
 define_loop_signal! {
     7
     L7SignalNoOuter;
-    L7SignalNoOuterNoBreakLocal;
+    L7SignalNoOuterNoBreak;
     L7SignalNoOuterNoContinueParent;
-    L7SignalNoOuterNoBreakLocalNoContinueParent;
+    L7SignalNoOuterNoBreakNoContinueParent;
 
     L7Signal(L6Signal)
         (break_7(B7): CanBreak7, continue_6(C6): CanContinue6)
@@ -277,9 +278,9 @@ define_loop_signal! {
 define_loop_signal! {
     8
     L8SignalNoOuter;
-    L8SignalNoOuterNoBreakLocal;
+    L8SignalNoOuterNoBreak;
     L8SignalNoOuterNoContinueParent;
-    L8SignalNoOuterNoBreakLocalNoContinueParent;
+    L8SignalNoOuterNoBreakNoContinueParent;
 
     L8Signal(L7Signal)
         (break_8(B8): CanBreak8, continue_7(C7): CanContinue7)
@@ -295,9 +296,9 @@ define_loop_signal! {
 define_loop_signal! {
     9
     L9SignalNoOuter;
-    L9SignalNoOuterNoBreakLocal;
+    L9SignalNoOuterNoBreak;
     L9SignalNoOuterNoContinueParent;
-    L9SignalNoOuterNoBreakLocalNoContinueParent;
+    L9SignalNoOuterNoBreakNoContinueParent;
 
     L9Signal(L8Signal)
         (break_9(B9): CanBreak9, continue_8(C8): CanContinue8)

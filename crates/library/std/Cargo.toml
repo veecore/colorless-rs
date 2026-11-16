@@ -4,14 +4,28 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description.workspace = true
+readme.workspace = true
+rust-version.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [lints]
 workspace = true
 
 [dependencies]
 colorless-core = { workspace = true }
+colorless-rt = { workspace = true }
+colorless-macros = { workspace = true }
+futures-io = { workspace = true, optional = true }
+futures-core = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["io-util"] }
 
 [features]
 default = ["std"]
-alloc = ["colorless-core/alloc"]
-std = ["alloc", "colorless-core/std"]
+alloc = ["colorless-core/alloc", "colorless-rt/alloc"]
+std = ["alloc", "colorless-core/std", "colorless-rt/std"]
+futures-io = ["dep:futures-io", "dep:futures-core"]
+tokio = ["dep:tokio"]
+nightly = []
+unstable = ["nightly", "futures-io", "tokio"]

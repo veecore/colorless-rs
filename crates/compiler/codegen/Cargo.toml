@@ -1,0 +1,24 @@
+[package]
+name = "colorless-codegen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description.workspace = true
+readme.workspace = true
+rust-version.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+compiler-cliff-probe = []
+
+[lints]
+workspace = true
+
+[dependencies]
+colorless-lower = {workspace = true}
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true }
+

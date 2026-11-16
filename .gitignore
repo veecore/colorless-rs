@@ -2,7 +2,9 @@
 /target
 target/
 *.rlib
+*.rmeta
 rust_out
+rustc-ice-*.txt
 
 # IDE and Editor files
 .idea/
@@ -15,3 +17,8 @@ rust_out
 # OS files
 .DS_Store
 Thumbs.db
+
+# Experiment files
+/crates/compiler/experiments/
+/crates/library/signal.former
+/crates/compiler/*.former

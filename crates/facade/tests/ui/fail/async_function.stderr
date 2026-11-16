@@ -1,0 +1,5 @@
+error: a `#[colorless]` function is already generic over execution; remove `async` and use `.resolve`
+ --> tests/ui/fail/async_function.rs:4:1
+  |
+4 | async fn unsupported() {}
+  | ^^^^^

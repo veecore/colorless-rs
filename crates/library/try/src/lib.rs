@@ -1,4 +1,4 @@
-//! A stable implementation of Rust's `Try` and `FromResidual` traits (RFC 3058).
+//! A stable implementation of Rust's `Try` and `FromResidual`.
 //!
 //! This crate provides the trait machinery necessary to desugar the `?` operator
 //! on stable Rust across [`Result`], [`Option`], [`ControlFlow`], [`Poll`], and layered
@@ -313,7 +313,7 @@ mod tests {
         }
 
         fn run_poll(ready: bool) -> Poll<Result<i32, String>> {
-            // Notice: `try_op!` unwraps `Poll::Ready(Ok(10))` into `Poll::Ready(10)` or handles Pending
+            // `try_op!` unwraps `Poll::Ready(Ok(10))` into `Poll::Ready(10)` or handles Pending
             let poll_val = try_op!(poll_fn(ready));
             match poll_val {
                 Poll::Ready(v) => Poll::Ready(Ok(v * 2)),

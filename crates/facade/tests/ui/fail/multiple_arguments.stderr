@@ -1,0 +1,5 @@
+error: `#[colorless]` cannot take more than one argument
+ --> tests/ui/fail/multiple_arguments.rs:3:21
+  |
+3 | #[colorless(Identity, Other)]
+  |                     ^

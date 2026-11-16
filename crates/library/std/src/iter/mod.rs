@@ -1,7 +1,7 @@
 //! Colored iterator abstractions and adapters.
 
-pub mod adapters;
-pub mod traits;
+pub mod into_iterator;
+pub mod iterator;
 
-pub use adapters::*;
-pub use traits::*;
+pub use into_iterator::*;
+pub use iterator::*;

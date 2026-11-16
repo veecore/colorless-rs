@@ -1,0 +1,7 @@
+error: #[colorless] can only be applied to functions, trait definitions, structs, and impl blocks
+ --> tests/ui/fail/invalid_target.rs:4:1
+  |
+4 | / enum NotASupportedTarget {
+5 | |     Value,
+6 | | }
+  | |_^

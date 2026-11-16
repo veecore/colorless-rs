@@ -1,0 +1,13 @@
+error: multiple inner attributes are not supported
+ --> tests/ui/fail/inline_duplicate_config.rs:5:9
+  |
+5 |         #![colorless(color = Identity)]
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Identity`
+ --> tests/ui/fail/inline_duplicate_config.rs:1:17
+  |
+1 | use colorless::{Identity, color};
+  |                 ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

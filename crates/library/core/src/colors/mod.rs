@@ -1,7 +1,5 @@
-//! Built-in execution color implementations.
+mod async_;
+mod sync_;
 
-pub mod async_;
-pub mod fallible;
-pub mod identity;
-pub mod nested;
-pub mod optional;
+pub use async_::*;
+pub use sync_::*;

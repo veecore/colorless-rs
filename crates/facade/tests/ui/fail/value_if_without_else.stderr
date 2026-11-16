@@ -1,0 +1,5 @@
+error: `if` used as a value must have an `else` branch
+ --> tests/ui/fail/value_if_without_else.rs:5:17
+  |
+5 |     let value = if true { 1 };
+  |                 ^^

@@ -4,9 +4,21 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description.workspace = true
+readme.workspace = true
+rust-version.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [lib]
 proc-macro = true
+
+[features]
+default = ["autocomplete"]
+autocomplete = []
+relaxed-drop = []
+# todo: we should return C::Erased
+dyn = []
 
 [lints]
 workspace = true
@@ -15,5 +27,4 @@ workspace = true
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 syn = { workspace = true }
-colorless-lower = { workspace = true }
-colorless-prepare = { workspace = true }
+colorless-codegen = { workspace = true }

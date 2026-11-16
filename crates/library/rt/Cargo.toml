@@ -1,0 +1,24 @@
+[package]
+name = "colorless-rt"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description.workspace = true
+readme.workspace = true
+rust-version.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+colorless-core = { workspace = true }
+cps-signal = { workspace = true }
+cps-try = { workspace = true }
+
+[features]
+default = ["std"]
+alloc = ["colorless-core/alloc"]
+std = ["alloc", "colorless-core/std"]

@@ -4,15 +4,31 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description.workspace = true
+readme.workspace = true
+rust-version.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [lints]
 workspace = true
 
-[dependencies]
-cps-signal = { workspace = true }
-cps-try = { workspace = true }
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+tokio = { workspace = true }
 
 [features]
-default = []
+default = ["rainbow", "alloc"]
 alloc = []
 std = ["alloc"]
+rainbow = []
+
+[[bench]]
+name = "optimization"
+path = "benches/optimization/main.rs"
+harness = false
+
+[[bench]]
+name = "workloads"
+path = "benches/workloads/main.rs"
+harness = false

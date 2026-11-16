@@ -1,14 +1,3 @@
-//! Control-flow capability traits and free polymorphic helper functions.
-//!
-//! When transforming code using Continuation-Passing Style (CPS), continuations
-//! may be duplicated across different loop nesting depths. If a continuation directly
-//! emitted a concrete constructor like `L1Signal::break_0(val)`, it would be hard-pinned
-//! to depth 1 and could not be reused at depth 2 or 0.
-//!
-//! To solve this, capability traits allow any continuation to invoke polymorphic
-//! free functions ([`break_0`], [`continue_0`], [`return_`]), and type inference
-//! resolves the result to whatever signal level is required by the enclosing scope.
-
 // -----------------------------------------------------------------------------
 // Break Capability Traits (Levels 0..9)
 // -----------------------------------------------------------------------------

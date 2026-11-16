@@ -1,0 +1,5 @@
+error: a `#[colorless]` function cannot yet be `const`
+ --> tests/ui/fail/const_function.rs:4:1
+  |
+4 | const fn unsupported() {}
+  | ^^^^^

@@ -1,0 +1,5 @@
+error: this macro invocation is not permitted in this position in the CPS IR
+  --> tests/ui/fail/forged_internal_pin.rs:12:5
+   |
+12 |     __unpin_local!(local);
+   |     ^^^^^^^^^^^^^^^^^^^^^

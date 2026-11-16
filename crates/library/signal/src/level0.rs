@@ -1,54 +1,44 @@
 //! Level-0 signal representing the outermost loop level and function boundary.
 
-use crate::traits::{CanBreak0, CanReturn};
-use core::convert::Infallible;
-
-/// Placeholder for the uninhabited never type (`!`).
-pub type Never = Infallible;
+use crate::{CanBreak0, CanReturn, Never};
 
 /// Control-flow signal at the outermost loop level.
 ///
 /// A level-0 signal has nowhere else to propagate to except the function
-/// boundary. [`L0Signal::BreakLocal`] represents a break from the outermost
-/// loop, while [`L0Signal::Return`] represents a function return.
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+/// boundary. [`L0Signal::Break`] represents a break from the outermost
+/// loop, while [`L0Signal::Outer`] represents a function return.
+#[derive(Debug)]
 #[must_use]
 pub enum L0Signal<B = Never, R = Never> {
     /// Break from the current (outermost) loop with `B`.
-    BreakLocal(B),
+    Break(B),
 
     /// Return from the enclosing function with `R`.
-    Return(R),
+    Outer(R),
 }
 
 impl<B, R> L0Signal<B, R> {
     /// Creates a signal that breaks from the outermost loop.
     #[inline(always)]
     pub const fn break_0(value: B) -> Self {
-        Self::BreakLocal(value)
+        Self::Break(value)
     }
 
-    /// Creates a signal that returns from the enclosing function.
+    /// Creates a signal that returns `value` from the enclosing function.
     #[inline(always)]
     pub const fn return_(value: R) -> Self {
-        Self::Return(value)
-    }
-
-    /// Alias for [`L0Signal::break_0`].
-    #[inline(always)]
-    pub const fn break_local(value: B) -> Self {
-        Self::BreakLocal(value)
+        Self::Outer(value)
     }
 }
 
-/// A level-0 signal that cannot return from the function.
-pub type L0SignalNoReturn<B> = L0Signal<B>;
-
 /// A level-0 signal that cannot break from its local loop.
-pub type L0SignalNoBreakLocal<R> = L0Signal<Never, R>;
+pub type L0SignalNoBreak<R> = L0Signal<Never, R>;
 
-/// A level-0 signal that can neither return nor break locally.
-pub type L0SignalNoReturnNoBreakLocal = L0Signal;
+/// A level-0 signal that cannot return from the function.
+pub type L0SignalNoOuter<C> = L0Signal<C, Never>;
+
+/// A level-0 signal that can neither break locally nor return.
+pub type L0SignalNoOuterNoBreak = L0Signal<Never, Never>;
 
 impl<B0, R> CanBreak0 for L0Signal<B0, R> {
     type B0 = B0;
