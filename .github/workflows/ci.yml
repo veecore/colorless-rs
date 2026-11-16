@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.85
+      - uses: dtolnay/rust-toolchain@1.95
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.85
+      - uses: dtolnay/rust-toolchain@1.95
       # `cargo check --tests` builds only metadata for the facade itself,
       # while its direct proc-macro integration tests must link that facade.
       # `cargo test --no-run` is the correct all-test-target build gate.
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.85
+      - uses: dtolnay/rust-toolchain@1.95
       - run: cargo doc --workspace --no-deps
 
   nightly:
