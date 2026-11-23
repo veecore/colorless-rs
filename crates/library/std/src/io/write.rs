@@ -1,16 +1,42 @@
 use colorless_macros::colorless;
-use std::io::Result;
+use std::io::{Error, ErrorKind, IoSlice, Result};
 use std::ops::DerefMut;
 
 /// A trait for writing bytes across colors (`Identity`, `Async`, etc.).
-#[colorless]
+#[colorless(no_wrap, C)]
 pub trait ColoredWrite {
     /// Writes a buffer into this writer, returning how many bytes were written.
     fn write(&mut self, buf: &[u8]) -> Result<usize>;
 
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> Result<usize> {
+        let buf = bufs
+            .iter()
+            .find(|b| !b.is_empty())
+            .map_or(&[][..], |b| &**b);
+        self.write(buf).resolve
+    }
+
     /// Flushes this output stream, ensuring that all intermediately buffered
     /// contents reach their destination.
     fn flush(&mut self) -> Result<()>;
+
+    fn write_all(&mut self, mut buf: &[u8]) -> Result<()> {
+        borrow!(self as self_);
+        #[state(mut buf, self_)]
+        while !buf.is_empty() {
+            match rb!(self_).write(buf).resolve {
+                Ok(0) => {
+                    return Err(Error::from(ErrorKind::WriteZero));
+                }
+                Ok(n) => {
+                    buf = &buf[n..];
+                }
+                Err(ref e) if is_interrupted(e) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(())
+    }
 
     /// Borrows a writer rather than consuming it.
     #[exclude]
@@ -22,14 +48,22 @@ pub trait ColoredWrite {
     }
 }
 
-#[colorless(C)]
-impl<W: ColoredWrite<C>> ColoredWrite for &mut W {
+#[colorless(no_wrap, C)]
+impl<W: ColoredWrite<C> + ?Sized> ColoredWrite for &mut W {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         self.deref_mut().write(buf).resolve
     }
 
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> Result<usize> {
+        self.deref_mut().write_vectored(bufs).resolve
+    }
+
     fn flush(&mut self) -> Result<()> {
         self.deref_mut().flush().resolve
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> Result<()> {
+        self.deref_mut().write_all(buf).resolve
     }
 
     #[exclude]
@@ -39,13 +73,25 @@ impl<W: ColoredWrite<C>> ColoredWrite for &mut W {
 }
 
 #[colorless]
-impl ColoredWrite for &mut [u8] {
+impl ColoredWrite for [u8] {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        std::io::Write::write(self, buf)
+        let mut self_ = self;
+        std::io::Write::write(&mut self_, buf)
+    }
+
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> Result<usize> {
+        let mut self_ = self;
+        std::io::Write::write_vectored(&mut self_, bufs)
     }
 
     fn flush(&mut self) -> Result<()> {
-        std::io::Write::flush(self)
+        let mut self_ = self;
+        std::io::Write::flush(&mut self_)
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> Result<()> {
+        let mut self_ = self;
+        std::io::Write::write_all(&mut self_, buf)
     }
 }
 
@@ -56,19 +102,28 @@ impl ColoredWrite for alloc::vec::Vec<u8> {
         std::io::Write::write(self, buf)
     }
 
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> Result<usize> {
+        std::io::Write::write_vectored(self, bufs)
+    }
+
     fn flush(&mut self) -> Result<()> {
         std::io::Write::flush(self)
     }
+
+    fn write_all(&mut self, buf: &[u8]) -> Result<()> {
+        std::io::Write::write_all(self, buf)
+    }
 }
 
+use crate::io::unstable_rust::is_interrupted;
 pub use bridge::*;
+
 mod bridge {
     use crate::io::ColoredWrite;
     #[allow(unused_imports)]
     use colorless_core::{Async, Identity};
     use colorless_macros::colorless;
-    use std::io::Result;
-
+    use std::io::{IoSlice, Result};
     // -------------------------------- std_io --------------------------------
 
     /// Wrapper converting a standard [`std::io::Write`] into a [`ColoredWrite`].
@@ -91,8 +146,18 @@ mod bridge {
         }
 
         #[inline]
+        fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> Result<usize> {
+            self.0.write_vectored(bufs)
+        }
+
+        #[inline]
         fn flush(&mut self) -> Result<()> {
             self.0.flush()
+        }
+
+        #[inline]
+        fn write_all(&mut self, buf: &[u8]) -> Result<()> {
+            self.0.write_all(buf)
         }
     }
 
@@ -117,6 +182,13 @@ mod bridge {
         #[inline]
         fn write(&mut self, buf: &[u8]) -> Result<usize> {
             core::future::poll_fn(|cx| core::pin::Pin::new(&mut self.0).poll_write(cx, buf))
+        }
+
+        #[inline]
+        fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> Result<usize> {
+            core::future::poll_fn(|cx| {
+                core::pin::Pin::new(&mut self.0).poll_write_vectored(cx, bufs)
+            })
         }
 
         #[inline]
@@ -147,8 +219,18 @@ mod bridge {
         }
 
         #[inline]
+        async fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> Result<usize> {
+            tokio::io::AsyncWriteExt::write_vectored(&mut self.0, bufs).await
+        }
+
+        #[inline]
         async fn flush(&mut self) -> Result<()> {
             tokio::io::AsyncWriteExt::flush(&mut self.0).await
+        }
+
+        #[inline]
+        async fn write_all(&mut self, buf: &[u8]) -> Result<()> {
+            tokio::io::AsyncWriteExt::write_all(&mut self.0, buf).await
         }
     }
 }
@@ -179,9 +261,9 @@ mod tests {
     fn test_write_colorless_generic() {
         #[colorless(C)]
         fn write_bytes<'a, W: ColoredWrite<C> + 'a>(mut w: W, data: &'a [u8]) -> Result<usize> {
-            pin_local!(w);
-            let n = w.write(data).resolve?;
-            unpin_local!(w);
+            pin!(w);
+            let n = rb!(w).write(data).resolve?;
+            unpin!(w);
             Ok(n)
         }
 

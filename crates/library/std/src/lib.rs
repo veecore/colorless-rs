@@ -20,3 +20,5 @@ pub mod function;
 #[cfg(feature = "std")]
 pub mod io;
 pub mod iter;
+#[cfg(any())]
+pub mod parse;

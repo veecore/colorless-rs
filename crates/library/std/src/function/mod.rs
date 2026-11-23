@@ -26,7 +26,7 @@ mod impls {
     use super::*;
     use core::ops::DerefMut;
 
-    #[colorless(C)]
+    #[colorless(no_wrap, C)]
     impl<A, F> ColoredFn<A> for &F
     where
         F: ColoredFn<A, C>,
@@ -36,7 +36,7 @@ mod impls {
         }
     }
 
-    #[colorless(C)]
+    #[colorless(no_wrap, C)]
     impl<A, F> ColoredFnMut<A> for &F
     where
         F: ColoredFn<A, C>,
@@ -46,7 +46,7 @@ mod impls {
         }
     }
 
-    #[colorless(C)]
+    #[colorless(no_wrap, C)]
     impl<A, F> ColoredFnOnce<A> for &F
     where
         F: ColoredFn<A, C>,
@@ -58,7 +58,7 @@ mod impls {
         }
     }
 
-    #[colorless(C)]
+    #[colorless(no_wrap, C)]
     impl<A, F> ColoredFnMut<A> for &mut F
     where
         F: ColoredFn<A, C>,
@@ -68,7 +68,7 @@ mod impls {
         }
     }
 
-    #[colorless(C)]
+    #[colorless(no_wrap, C)]
     impl<A, F> ColoredFnOnce<A> for &mut F
     where
         F: ColoredFn<A, C>,
@@ -91,6 +91,7 @@ mod adapters {
     use colorless_macros::colorless;
 
     #[must_use = "colored closures are lazy and do nothing unless called"]
+    #[derive(Copy, Clone)]
     pub struct Map<A, B> {
         a: A,
         b: B,
@@ -100,7 +101,7 @@ mod adapters {
         Map { a, b }
     }
 
-    #[colorless(C)]
+    #[colorless(no_wrap, C)]
     impl<A, B, Args> ColoredFn<Args> for Map<A, B>
     where
         A: ColoredFn<Args, C>,
@@ -112,7 +113,7 @@ mod adapters {
         }
     }
 
-    #[colorless(C)]
+    #[colorless(no_wrap, C)]
     impl<A, B, Args> ColoredFnMut<Args> for Map<A, B>
     where
         A: ColoredFnMut<Args, C>,
@@ -127,7 +128,7 @@ mod adapters {
         }
     }
 
-    #[colorless(C)]
+    #[colorless(no_wrap, C)]
     impl<A, B, Args> ColoredFnOnce<Args> for Map<A, B>
     where
         A: ColoredFnOnce<Args, C>,
@@ -143,6 +144,7 @@ mod adapters {
 
     // -------------------------------- IdentityFn --------------------------------
     #[must_use = "colored closures are lazy and do nothing unless called"]
+    #[derive(Copy, Clone)]
     pub struct IdentityFn;
 
     #[inline]
@@ -179,6 +181,7 @@ mod adapters {
     // -------------------------------- DiscardFn --------------------------------
 
     #[must_use = "colored closures are lazy and do nothing unless called"]
+    #[derive(Copy, Clone)]
     pub struct Discard;
 
     #[inline]
@@ -217,6 +220,7 @@ mod bridge {
     // -------------------------------- sync fn --------------------------------
 
     #[must_use = "colored closures are lazy and do nothing unless called"]
+    #[derive(Copy, Clone)]
     pub struct Closure<F>(F);
 
     #[inline]
@@ -262,6 +266,7 @@ mod bridge {
     // -------------------------------- async fn --------------------------------
 
     #[must_use = "colored closures are lazy and do nothing unless called"]
+    #[derive(Copy, Clone)]
     pub struct AsyncClosure<F>(F);
 
     #[inline]
@@ -307,6 +312,7 @@ mod bridge {
     // -------------------------------- ColoredClosure --------------------------------
 
     #[must_use = "colored closures are lazy and do nothing unless called"]
+    #[derive(Copy, Clone)]
     pub struct ColoredClosure<F>(F);
 
     #[inline]
@@ -314,7 +320,7 @@ mod bridge {
         ColoredClosure(f)
     }
 
-    #[colorless(C)]
+    #[colorless(no_wrap, C)]
     impl<R, F, Args> ColoredFn<Args> for ColoredClosure<F>
     where
         F: Fn(Args) -> R,
@@ -327,7 +333,7 @@ mod bridge {
         }
     }
 
-    #[colorless(C)]
+    #[colorless(no_wrap, C)]
     impl<R, F, Args> ColoredFnMut<Args> for ColoredClosure<F>
     where
         F: FnMut(Args) -> R,
@@ -340,7 +346,7 @@ mod bridge {
         }
     }
 
-    #[colorless(C)]
+    #[colorless(no_wrap, C)]
     impl<R, F, Args> ColoredFnOnce<Args> for ColoredClosure<F>
     where
         F: FnOnce(Args) -> R,

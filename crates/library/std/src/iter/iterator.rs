@@ -34,7 +34,7 @@ pub trait ColoredIterator {
     }
 }
 
-#[colorless(C)]
+#[colorless(no_wrap, C)]
 impl<I: ColoredIterator<C>> ColoredIterator for &mut I {
     type Item = I::Item;
 
@@ -52,27 +52,27 @@ pub use bridge::*;
 
 #[allow(unused_imports)]
 mod bridge {
-    use crate::iter::ColoredIterator;
-    use colorless_core::FallibleAsync;
+    use crate::iter::{ColoredIterator, IntoColoredIterator};
     use colorless_core::{Async, Identity};
+    use colorless_core::{FallibleAsync, IdentityExt};
     use colorless_macros::colorless;
     use core::task::Poll;
 
     // -------------------------------- std_iter --------------------------------
 
-    /// Wrapper converting a standard [`core::iter::Iterator`] into a [`ColoredIterator`].
+    /// Wrapper converting a standard [`Iterator`] into a [`ColoredIterator`].
     #[must_use = "iterators are lazy and do nothing unless consumed"]
     #[derive(Debug, Copy, Clone)]
     pub struct FromIter<I>(pub I);
 
-    /// Converts any standard [`core::iter::Iterator`] into a [`ColoredIterator`].
+    /// Converts any standard [`Iterator`] into a [`ColoredIterator`].
     #[inline(always)]
-    pub fn from_iter<I: ::core::iter::IntoIterator>(iter: I) -> FromIter<I::IntoIter> {
+    pub fn from_iter<I: IntoIterator>(iter: I) -> FromIter<I::IntoIter> {
         FromIter(iter.into_iter())
     }
 
     #[colorless(color = Identity)]
-    impl<I: ::core::iter::Iterator> ColoredIterator for FromIter<I> {
+    impl<I: Iterator> ColoredIterator for FromIter<I> {
         type Item = I::Item;
 
         #[inline(always)]
@@ -83,6 +83,25 @@ mod bridge {
         #[exclude]
         fn size_hint(&self) -> (usize, Option<usize>) {
             self.0.size_hint()
+        }
+    }
+
+    #[must_use = "iterators are lazy and do nothing unless consumed"]
+    #[derive(Debug, Copy, Clone)]
+    pub struct IntoIter<I>(pub I);
+
+    // this is very loss-ful and just convenience
+    #[inline(always)]
+    pub fn into_iter<I: IntoColoredIterator<Identity>>(iter: I) -> IntoIter<I::IntoIter> {
+        IntoIter(iter.into_iter())
+    }
+
+    impl<I: ColoredIterator<Identity>> Iterator for IntoIter<I> {
+        type Item = I::Item;
+
+        #[inline]
+        fn next(&mut self) -> Option<Self::Item> {
+            self.0.next().sync_()
         }
     }
 
@@ -217,8 +236,8 @@ mod tests {
     fn test_by_ref_colorless() {
         #[colorless(C)]
         fn run<'a, I: ColoredIterator<C, Item = i32> + 'a>(mut it: I) -> Option<i32> {
-            pin_local!(it);
-            let r = it.by_ref();
+            pin!(it);
+            let r = rb!(it).by_ref();
             r.next().resolve
         }
 

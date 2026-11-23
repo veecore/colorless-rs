@@ -22,10 +22,11 @@ futures-core = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["io-util"] }
 
 [features]
-default = ["std"]
+default = ["std", "autocomplete"]
 alloc = ["colorless-core/alloc", "colorless-rt/alloc"]
 std = ["alloc", "colorless-core/std", "colorless-rt/std"]
-futures-io = ["dep:futures-io", "dep:futures-core"]
-tokio = ["dep:tokio"]
+futures-io = ["dep:futures-io", "dep:futures-core", "std"]
+tokio = ["dep:tokio", "std"]
 nightly = []
 unstable = ["nightly", "futures-io", "tokio"]
+autocomplete = ["colorless-macros/autocomplete"]
