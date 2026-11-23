@@ -15,10 +15,10 @@ extern crate alloc;
 extern crate std;
 
 // Re-export core primitives
+#[doc(hidden)] // no one likes you
 pub use colorless_core::*;
 pub use colorless_rt::{
-    borrow_mut, borrow_mut_inert, end_borrow_mut, end_borrow_mut_inert, keep_alive, pin_local,
-    reborrow, reborrow_inert, unpin_local,
+    __borrow, __pin, __rb, __unborrow, __unpin, borrow, keep_alive, rb, unborrow,
 };
 
 // Re-export standard library abstractions when enabled

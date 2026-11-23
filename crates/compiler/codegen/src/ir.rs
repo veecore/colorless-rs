@@ -1,10 +1,9 @@
 use crate::Result;
 use crate::context::FoldContext;
-use crate::rules::borrow::declare_borrow_macros;
 use crate::runtime_call::thunk;
 use crate::util::block;
 use std::collections::VecDeque;
-use syn::{Expr, Stmt};
+use syn::{Expr, Stmt, parse_quote};
 
 /// The result of folding a CPS body.
 #[derive(Clone, Default)]
@@ -44,25 +43,56 @@ impl Folded {
     pub fn finish(self, ctx: &mut FoldContext) -> Result<Expr> {
         let mut folded = self;
 
-        // folded.stmts.push_front(ctx.use_color());
-        if ctx.config.declare_borrow_macros {
-            folded.stmts.push_front(declare_borrow_macros(ctx));
+        pub fn declare_macros(ctx: &FoldContext) -> Stmt {
+            let krate = &ctx.config.crate_path;
+            // for inert code, we just emit a different use
+            parse_quote! {
+                use #krate::{
+                    rb, borrow, unborrow, keep_alive, slot, take_slot, rb as rbv
+                };
+            }
         }
 
-        let (method, body) = match folded.output.yield_point {
-            YieldPoint::Plain => ("wrap", {
+        // folded.stmts.push_front(ctx.use_color());
+        if ctx.config.declare_borrow_macros {
+            folded.stmts.push_front(declare_macros(ctx));
+        }
+
+        let body = match folded.output.yield_point {
+            YieldPoint::Plain => {
                 if let Some(block) = ctx.config.original_block_plain.take() {
                     block.stmts
                 } else {
                     folded.stmts.into()
                 }
-            }),
-            YieldPoint::Colored => ("wrap_flatten", folded.stmts.into()),
+            }
+            YieldPoint::Colored => folded.stmts.into(),
         };
 
-        let body = thunk(!ctx.config.no_capture, body);
+        if ctx.config.no_wrap {
+            match folded.output.yield_point {
+                YieldPoint::Colored => {
+                    // already lowered - has no native control-flows
+                    Ok(block(body))
+                }
+                YieldPoint::Plain => {
+                    let func = thunk(!ctx.config.no_capture, body);
 
-        Ok(ctx.call("Wrap", method, [body]))
+                    Ok(ctx.call("Ready", "ready_fn", [func]))
+                }
+            }
+        } else {
+            let body = thunk(!ctx.config.no_capture, body);
+
+            Ok(ctx.call(
+                "Wrap",
+                match folded.output.yield_point {
+                    YieldPoint::Colored => "wrap_flatten",
+                    YieldPoint::Plain => "wrap",
+                },
+                [body],
+            ))
+        }
     }
 }
 

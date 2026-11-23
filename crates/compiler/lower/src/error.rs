@@ -4,7 +4,7 @@ use crate::Result;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::token::{Else, If};
-use syn::{Attribute, ExprBreak, ExprContinue, ExprGroup, ExprLet, ExprTryBlock, Macro};
+use syn::{Attribute, ExprBreak, ExprContinue, ExprLet, ExprTryBlock, Macro};
 
 /// Errors that can occur while lowering Rust syntax into the CPS IR.
 #[derive(Debug, Clone)]
@@ -25,10 +25,6 @@ pub enum CpsError {
 
     /// A raw [`syn::Error`] produced by an upstream parse step.
     Other(syn::Error),
-
-    /// A grouped expression (produced by macro expansion) is not supported in
-    /// the CPS IR.
-    SynGroup(ExprGroup),
 
     /// A `try { … }` block expression is not yet supported.
     ///
@@ -56,7 +52,12 @@ pub enum CpsError {
 /// [`CpsError::UnallowedAttributes`].
 #[inline]
 pub(crate) fn assert_no_attrs(attrs: Vec<Attribute>) -> Result<()> {
-    if attrs.is_empty() {
+    // discarding the attr here but inert has it
+    if attrs.is_empty()
+        || attrs
+            .iter()
+            .any(|attr| attr.path().get_ident().is_some_and(|i| i == "allow"))
+    {
         Ok(())
     } else {
         Err(CpsError::UnallowedAttributes(attrs).into())
@@ -83,10 +84,6 @@ impl From<CpsError> for syn::Error {
                 syn::Error::new_spanned(if_, "`if` used as a value must have an `else` branch")
             }
             CpsError::Other(e) => e,
-            CpsError::SynGroup(group) => syn::Error::new_spanned(
-                group,
-                "grouped expressions produced by macro expansion are not supported in the CPS IR",
-            ),
             CpsError::TryBlock(block) => syn::Error::new_spanned(
                 block,
                 "`try { … }` block expressions are not yet supported in the CPS IR",

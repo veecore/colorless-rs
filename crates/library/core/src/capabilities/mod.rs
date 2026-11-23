@@ -172,4 +172,29 @@ pub mod callbacks {
         type Break = Break;
         type Flow = Flow;
     }
+
+    pub trait ColoredCallFoldMut<C, StateMut, State>:
+        FnMut(&mut StateMut, State) -> Self::Flow
+    {
+        /// Value produced when the loop breaks.
+        type Break;
+
+        /// Computation for one iteration.
+        type Flow: Colored<C, Output = ControlFlow<Self::Break, State>>;
+    }
+
+    impl<C, StateMut, State, Break, Flow, F> ColoredCallFoldMut<C, StateMut, State> for F
+    where
+        F: FnMut(&mut StateMut, State) -> Flow,
+        Flow: Colored<C, Output = ControlFlow<Break, State>>,
+    {
+        type Break = Break;
+        type Flow = Flow;
+    }
+
+    pub trait FlatBorrowScope<C, Var> {
+        type Resume;
+        type Flow: Colored<C, Output = Self::Resume>;
+        fn resume_mut_flat(self, var: &mut Var) -> Self::Flow;
+    }
 }

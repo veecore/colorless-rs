@@ -223,7 +223,7 @@ fn try_acquire_full_state(
         return Err(syn::Error::new(
             binding.span,
             "This feature is not yet fully implemented. \
-             Maybe convert the loop to a plain loop and manually thread the variable through break, or provide `#[default_break_state]` if the Default impls aren't expensive",
+             Maybe convert the loop to a plain loop and manually thread the variable through break, or provide `#[default_state]` if the Default impls aren't expensive",
         ));
     }
 
@@ -286,7 +286,7 @@ fn try_acquire_full_state(
             return Err(syn::Error::new_spanned(
                 loop_token,
                 format!(
-                    "To avoid unintentional state overwrite with Copy types, ensure that none of the inherited states {states} is redeclared then add `#[inherit_no_shadow]` on this loop. \
+                    "To avoid unintentional state overwrite with Copy types, ensure that none of the inherited states {states} is redeclared then add `#[no_shadow]` on this loop. \
                         This is not an issue with your code but a serious limitation."
                 ),
             ));
@@ -294,7 +294,7 @@ fn try_acquire_full_state(
         (false, true) => {
             return Err(syn::Error::new_spanned(
                 loop_token,
-                "Redundant hint `#[inherit_no_shadow]`. This is only needed when this loop inherits states",
+                "Redundant hint `#[no_shadow]`. This is only needed when this loop inherits states",
             ));
         }
         _ => {}

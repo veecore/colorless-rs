@@ -105,9 +105,13 @@ pub trait Colored<C>: ColoredInternal<C, OutputInternal = Self::Output> {
 
 /// Stand-in `Colored<C>` implementation used in tests and as a compile-time
 /// placeholder where a concrete type is not yet available.
-///
-/// Constructing a `PlaceHolder` and driving it will panic at runtime in any context.
-pub struct PlaceHolder<C, T>(PhantomData<C>, PhantomData<T>);
+pub struct PlaceHolder<C, T> {
+    void: Void,
+    color: PhantomData<C>,
+    data: PhantomData<T>,
+}
+
+enum Void {}
 
 /// Crate-internal sealed abstractions for zero-cost unboxed state machines.
 pub(crate) mod internal {
@@ -222,7 +226,7 @@ unsafe impl<C, T> ColoredInternal<C> for PlaceHolder<C, T> {
     where
         C: Present,
     {
-        todo!()
+        match self.void {}
     }
 
     unsafe fn finalize_ready(self: Pin<&mut Self>) {
@@ -234,7 +238,7 @@ unsafe impl<C, T> ColoredInternal<C> for PlaceHolder<C, T> {
         C: Present,
         Self: Sized,
     {
-        todo!()
+        match self.void {}
     }
 }
 

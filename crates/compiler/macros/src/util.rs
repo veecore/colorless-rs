@@ -5,23 +5,18 @@ use syn::{
     ReturnType, Signature, Type, TypeParam, parse_quote,
 };
 
-pub fn add_generic(generics: Generics, crate_path: &syn::Path, color_generic: &Ident) -> Generics {
-    add_color_generic(generics, crate_path, color_generic, false)
-}
-
-pub fn add_color_generic(
-    mut generics: Generics,
+pub fn add_generic(
+    generics: &mut Generics,
     crate_path: &syn::Path,
     color_generic: &Ident,
-    with_default: bool,
-) -> Generics {
-    let parameter: TypeParam = if with_default {
+    default: bool,
+) {
+    let parameter: TypeParam = if default {
         parse_quote!(#color_generic: #crate_path::Color = ::colorless::Identity)
     } else {
         parse_quote!(#color_generic: #crate_path::Color)
     };
     generics.params.push(GenericParam::Type(parameter));
-    generics
 }
 
 pub fn rewrite_output(

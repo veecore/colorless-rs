@@ -74,12 +74,8 @@ mod impls {
             $output:ident on_ready_ok: $ok:block
         ) => {
             match $t {
-                Poll::Pending => {
-                    $p
-                },
-                Poll::Ready($output) => {
-                    $ok
-                }
+                Poll::Pending => $p,
+                Poll::Ready($output) => $ok,
             }
         };
         (
@@ -94,18 +90,14 @@ mod impls {
             $output:ident on_ready_ok: $ok:block
         ) => {
             match $t {
-                Poll::Pending => {
-                    $p
-                },
+                Poll::Pending => $p,
                 Poll::Ready(ControlFlow::Break(value)) => {
                     $r;
                     return Poll::Ready(value);
-                },
-                Poll::Ready(ControlFlow::Continue($output)) => {
-                    $ok
                 }
+                Poll::Ready(ControlFlow::Continue($output)) => $ok,
             }
-        }
+        };
     }
 
     declare_async_all! {
@@ -141,8 +133,6 @@ mod parity_test {
         })
     }
 
-    // TODO: the current implementations that use async block need to be
-    //  updated soon
     #[test]
     fn manual_combinator_layouts_do_not_exceed_native_futures() {
         #[derive(Clone, Copy)]
@@ -194,7 +184,7 @@ mod parity_test {
             Async::wrap_flatten(move || {
                 Async::map(MakeColored(layout_countdown(value)), |value| value)
             })
-                .async_()
+            .async_()
         }
 
         fn native_map(value: i64, captured: LayoutPayload) -> impl Future<Output = usize> {
@@ -207,7 +197,7 @@ mod parity_test {
                     value as usize + captured.total()
                 })
             })
-                .async_()
+            .async_()
         }
 
         fn native_and_then(value: i64, captured: LayoutPayload) -> impl Future<Output = i64> {
@@ -223,7 +213,7 @@ mod parity_test {
                     MakeColored(layout_countdown(value + captured.total() as i64))
                 })
             })
-                .async_()
+            .async_()
         }
 
         fn native_loop(value: i64, captured: LayoutPayload) -> impl Future<Output = i64> {
@@ -249,7 +239,7 @@ mod parity_test {
                     })
                 })
             })
-                .async_()
+            .async_()
         }
 
         let payload = LayoutPayload([1, 2, 3]);
@@ -296,7 +286,7 @@ mod parity_test {
                     }
                 })
             })
-                .async_()
+            .async_()
         }
 
         let native = native(10);
@@ -319,15 +309,18 @@ mod drop_tests {
     use super::*;
     use crate::callbacks::{CallOnce, ColoredCallOnce, ColoredThunkOnce, ThunkOnce};
     use crate::colors::async_::identity::impls::{AsyncExt, MakeColored};
-    use crate::{test_util::{block_on_local_test, block_on_test, fetch, poll_once}, Colored, Colorize, Cps, Loop, Ready, Wrap};
+    use crate::{
+        Colored, Colorize, Cps, Loop, Ready, Wrap,
+        test_util::{block_on_local_test, block_on_test, fetch, poll_once},
+    };
     use std::future::poll_fn;
     use std::hint::black_box;
     use std::ops::ControlFlow;
     use std::panic::AssertUnwindSafe;
-    use std::pin::{pin, Pin};
+    use std::pin::{Pin, pin};
     use std::prelude::v1::Box;
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::task::{Context, Poll};
 
     #[test]
@@ -377,7 +370,7 @@ mod drop_tests {
             pending: true,
             _capture: DropProbe(drops.clone()),
         })
-            .async_();
+        .async_();
         let mut future = pin!(future);
 
         assert!(poll_once(future.as_mut()).is_pending());
@@ -416,7 +409,7 @@ mod drop_tests {
 
     #[test]
     fn continuation_drops_in_flight() {
-        // this isn't a parity test... 
+        // this isn't a parity test...
         // native async doesn't do this, but it's just inevitable with the current design
         let thunk_drops = test_spy();
         let flow_drops = test_spy();
@@ -428,7 +421,7 @@ mod drop_tests {
                 pending_computation_drop_spy(flow_drops)
             }
         })
-            .async_();
+        .async_();
 
         let mut future = Box::pin(future);
         assert!(poll_once(future.as_mut()).is_pending());
@@ -460,7 +453,7 @@ mod drop_tests {
             pending_computation_drop_spy(source_drops.clone()),
             drop_spy_continuation_panic_on_call(continuation_drops.clone()),
         )
-            .async_();
+        .async_();
         assert_func(source_drops, continuation_drops, future);
 
         let source_drops = test_spy();
@@ -469,7 +462,7 @@ mod drop_tests {
             pending_computation_drop_spy(source_drops.clone()),
             drop_spy_continuation_panic_on_call(continuation_drops.clone()),
         )
-            .async_();
+        .async_();
         assert_func(source_drops, continuation_drops, future);
     }
 
@@ -480,7 +473,7 @@ mod drop_tests {
         let future = Async::and_then(ready_computation_drop_spy(first_drops.clone()), |()| {
             pending_computation_drop_spy(then_drops.clone())
         })
-            .async_();
+        .async_();
 
         let mut future = Box::pin(future);
         // on ready, it goes to pending immediately
@@ -512,7 +505,7 @@ mod drop_tests {
             ready_computation_panic_on_drop(source_drops.clone()),
             drop_spy_continuation_panic_on_call(continuation_drops.clone()),
         )
-            .async_();
+        .async_();
         assert_func(source_drops, continuation_drops, future);
 
         let source_drops = test_spy();
@@ -521,7 +514,7 @@ mod drop_tests {
             ready_computation_panic_on_drop(source_drops.clone()),
             drop_spy_continuation_panic_on_call(continuation_drops.clone()),
         )
-            .async_();
+        .async_();
         assert_func(source_drops, continuation_drops, future);
     }
 
@@ -547,7 +540,7 @@ mod drop_tests {
             ready_computation_panic_on_drop(source_drops.clone()),
             drop_spy_continuation_panic_on_call(continuation_drops.clone()),
         )
-            .async_();
+        .async_();
         assert_func(source_drops, continuation_drops, future);
 
         let source_drops = test_spy();
@@ -556,7 +549,7 @@ mod drop_tests {
             ready_computation_panic_on_drop(source_drops.clone()),
             drop_spy_continuation_panic_on_call(continuation_drops.clone()),
         )
-            .async_();
+        .async_();
         assert_func(source_drops, continuation_drops, future);
     }
 
@@ -601,7 +594,7 @@ mod drop_tests {
             ready_computation_drop_spy(source_drops.clone()),
             drop_spy_continuation_panic_on_call(capture_drops.clone()),
         )
-            .async_();
+        .async_();
         assert_func(capture_drops, future);
         assert_eq!(source_drops.load(Ordering::SeqCst), 1);
 
@@ -612,7 +605,7 @@ mod drop_tests {
             ready_computation_drop_spy(source_drops.clone()),
             drop_spy_continuation_panic_on_call(capture_drops.clone()),
         )
-            .async_();
+        .async_();
         assert_func(capture_drops, future);
         assert_eq!(source_drops.load(Ordering::SeqCst), 1);
     }
@@ -651,7 +644,7 @@ mod drop_tests {
                     drops: flow_drops.clone(),
                 })
             })
-                .async_()
+            .async_()
         }
 
         let state_drops = test_spy();
@@ -722,7 +715,7 @@ mod drop_tests {
                 drops: flow_drops_in_callback.clone(),
             })
         })
-            .async_();
+        .async_();
         let mut future = pin!(future);
 
         let panic = std::panic::catch_unwind(AssertUnwindSafe(|| block_on_test(&mut future)))
@@ -778,7 +771,7 @@ mod drop_tests {
                 drops: flow_drops_in_callback.clone(),
             })
         })
-            .async_();
+        .async_();
         let mut future = pin!(future);
 
         let panic = std::panic::catch_unwind(AssertUnwindSafe(|| block_on_test(&mut future)))
@@ -806,7 +799,7 @@ mod drop_tests {
             use_(&callback_capture);
             Async::ready(ControlFlow::<usize, ()>::Break(7))
         })
-            .async_();
+        .async_();
 
         assert_eq!(block_on_test(future), 7);
         assert_eq!(callback_drops.load(Ordering::SeqCst), 1);
@@ -859,7 +852,7 @@ mod drop_tests {
                 live: live_in_callback.clone(),
             })
         })
-            .async_();
+        .async_();
 
         assert_eq!(block_on_test(future), 7);
         assert_eq!(calls.load(Ordering::SeqCst), 2);
@@ -894,7 +887,7 @@ mod drop_tests {
                 MakeColored(PanicOnPoll(drops.clone()))
             }
         })
-            .async_();
+        .async_();
 
         let mut future = pin!(future);
 
@@ -927,7 +920,7 @@ mod drop_tests {
             #[allow(unreachable_code)]
             Async::ready(ControlFlow::<(), DropProbe>::Break(()))
         })
-            .async_();
+        .async_();
         let mut future = pin!(future);
 
         let panic = std::panic::catch_unwind(AssertUnwindSafe(|| block_on_test(&mut future)))
@@ -999,7 +992,7 @@ mod drop_tests {
                 })
             })
         })
-            .async_();
+        .async_();
         block_on_test(future);
     }
 
@@ -1104,7 +1097,7 @@ mod pin_tests {
     use crate::{Cps, Loop, Ready, Wrap};
     use std::marker::PhantomPinned;
     use std::ops::ControlFlow;
-    use std::pin::{pin, Pin};
+    use std::pin::{Pin, pin};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::task::{Context, Poll};
 
@@ -1183,7 +1176,7 @@ mod pin_tests {
             let future = Async::and_then(MakeColored(AddressCheckedFuture::new(4)), |value| {
                 Async::ready(value + 1)
             })
-                .async_();
+            .async_();
             assert_func(future)
         }
 
@@ -1197,7 +1190,7 @@ mod pin_tests {
             let future = Async::fold((), {
                 move |()| MakeColored(AddressCheckedFuture::new(ControlFlow::Break(5)))
             })
-                .async_();
+            .async_();
             assert_func(future)
         }
     }

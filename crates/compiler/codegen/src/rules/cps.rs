@@ -11,7 +11,11 @@ impl Fold<Folded> for CpsStmtResolve {
 
     fn fold(self, below: Folded, ctx: &mut FoldContext) -> Result<Self::Output> {
         let first = (*self.base).into_syn();
-        let converted = ctx.call_into_colored(first);
+        let converted = if ctx.config.desugar_resolve {
+            ctx.call_into_colored(first)
+        } else {
+            first
+        };
 
         if self.semi_token.is_none() {
             assert!(below.is_hole());

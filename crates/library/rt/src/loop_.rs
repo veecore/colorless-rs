@@ -1,14 +1,7 @@
 //! Loop step inference and diagnostic types emitted during loop lowering.
 
-/// Loop step inference helper used to guide closure inference in lowered loops.
-#[inline(always)]
-#[doc(hidden)]
-pub const fn infer_loop_step<State, Output, Step>(_: &State, step: Step) -> Step
-where
-    Step: FnMut(State) -> Output,
-{
-    step
-}
+use crate::{ErasedBorrow, LocalCell, Reborrow};
+use core::mem::MaybeUninit;
 
 /// # ⚠️ Colorless Diagnostic: Undeclared Variable Captured in Loop
 ///
@@ -53,6 +46,16 @@ where
 #[inline(always)]
 pub fn assert_non_capturing<State, Output>(_: &State, _: fn(State) -> Output) {}
 
+/// Loop step inference helper used to guide closure inference in lowered loops.
+#[inline(always)]
+#[doc(hidden)]
+pub const fn infer_loop_step<State, Output, Step>(_: &State, step: Step) -> Step
+where
+    Step: FnMut(State) -> Output,
+{
+    step
+}
+
 /// # ⚠️ Colorless Diagnostic: Unexported Loop State
 ///
 /// This variable was used as state inside a loop, but was **not exported** to the
@@ -87,6 +90,95 @@ pub fn assert_non_capturing<State, Output>(_: &State, _: fn(State) -> Output) {}
 /// loop { ... }
 /// ```
 pub struct Shadowed;
+
+#[repr(transparent)]
+pub struct Slot<S> {
+    // Using methods broke ?Sized
+    pub maybe_uninit: MaybeUninit<S>,
+}
+
+// Marker for local wrappers with no drop
+trait SlotCarrier {}
+
+impl<S: SlotCarrier> Slot<S> {
+    #[inline(always)]
+    pub fn new(t: S) -> Self {
+        Self {
+            maybe_uninit: MaybeUninit::new(t),
+        }
+    }
+
+    #[inline(always)]
+    pub fn take(self) -> S {
+        unsafe { self.maybe_uninit.assume_init() }
+    }
+}
+
+impl<S> Default for Slot<S> {
+    fn default() -> Self {
+        Self {
+            maybe_uninit: MaybeUninit::uninit(),
+        }
+    }
+}
+
+impl<'a, S: Reborrow<'a>> Reborrow<'a> for Slot<S> {
+    type Target = S::Target;
+
+    #[inline(always)]
+    unsafe fn reborrow(&self) -> &'a mut Self::Target {
+        unsafe { self.maybe_uninit.assume_init_ref().reborrow() }
+    }
+}
+impl<T: ?Sized> SlotCarrier for ErasedBorrow<T> {}
+impl<T: ?Sized> SlotCarrier for LocalCell<'_, T> {}
+
+#[inline(always)]
+pub fn assert_slot_carrier<S: SlotCarrier>(_t: &Slot<S>) {}
+
+#[macro_export]
+macro_rules! slot {
+    ($($s:ident),*) => {
+        $(
+            #[must_use]
+            let mut $s = $crate::__compiler::Slot {
+                maybe_uninit: ::core::mem::MaybeUninit::new($s),
+            };
+
+            $crate::__compiler::assert_slot_carrier(&$s);
+
+            let mut $s = $s;
+        )*
+    };
+}
+
+#[macro_export]
+macro_rules! take_slot {
+    ($($s:ident),*) => {
+        $(
+            let mut $s = match $s {
+                $crate::__compiler::Slot { maybe_uninit } => unsafe {
+                    maybe_uninit.assume_init()
+                }
+            };
+        )*
+    };
+}
+
+#[macro_export]
+macro_rules! __slot {
+    ($($s:ident),*) => {
+        $(
+            #[allow(unused_mut)]
+            let mut $s = $s;
+        )*
+    };
+}
+
+#[macro_export]
+macro_rules! __take_slot {
+    ($($s:ident),*) => {};
+}
 
 #[cfg(test)]
 mod tests {

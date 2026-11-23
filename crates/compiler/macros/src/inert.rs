@@ -23,9 +23,9 @@ pub fn generate_inert_body(mut block: Block, color_type: &Type, crate_path: &Pat
                 Expr::While(loop_) => Some(&mut loop_.attrs),
                 _ => None,
             };
-            const LOOP_STATE: &str = "loop_state";
-            const NO_SHADOW: &str = "inherit_no_shadow";
-            const DEFAULT_BREAK_STATE: &str = "default_break_state";
+            const LOOP_STATE: &str = "state";
+            const NO_SHADOW: &str = "no_shadow";
+            const DEFAULT_BREAK_STATE: &str = "default_state";
             if let Some(attrs) = attrs {
                 attrs.retain(|attr| {
                     attr.path().segments.last().is_none_or(|segment| {
@@ -126,8 +126,8 @@ pub fn generate_inert_body(mut block: Block, color_type: &Type, crate_path: &Pat
     stmts.push(parse_quote! {
         #[allow(unused_imports)]
         use #crate_path::__compiler::{
-            borrow_mut_inert as borrow_mut, end_borrow_mut_inert as end_borrow_mut,
-            reborrow_inert as reborrow, pin_local, unpin_local, keep_alive
+            __borrow as borrow, __rb as rb, __unborrow as unborrow, __pin as pin, __unpin as unpin, keep_alive,
+            __slot as slot, __take_slot as take_slot, __rbv as rbv
         };
     });
     stmts.append(&mut block.stmts);
@@ -169,7 +169,7 @@ pub fn with_original_validation(
     // unused_variables because of macro capture... still don't get it
     let colorless_arm = Arm {
         attrs: parse_quote! {
-            #[allow(path_statements, unused, clippy::unused_unit)]
+            #[allow(path_statements, unused, clippy::unused_unit, nonstandard_style)]
         },
         pat: parse_quote!(true),
         fat_arrow_token: Default::default(),

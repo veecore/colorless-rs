@@ -2,9 +2,9 @@
 //! (Arrays, Tuples, Calls, MethodCalls, Unary, Casts, Field expressions, etc.).
 
 use crate::ir::{
-    CpsExprArray, CpsExprAwait, CpsExprCall, CpsExprCast, CpsExprMethodCall, CpsExprRange,
-    CpsExprRawAddr, CpsExprReference, CpsExprRepeat, CpsExprStruct, CpsExprTuple, CpsExprUnary,
-    CpsExprYield,
+    CpsExprArray, CpsExprAwait, CpsExprCall, CpsExprCast, CpsExprGroup, CpsExprMethodCall,
+    CpsExprRange, CpsExprRawAddr, CpsExprReference, CpsExprRepeat, CpsExprStruct, CpsExprTuple,
+    CpsExprUnary, CpsExprYield,
 };
 use crate::ir::{CpsExprAssign, CpsExprIndex, CpsExprParen};
 use crate::{CpsError, derive_cps_bind, derive_cps_bind_error};
@@ -70,7 +70,17 @@ derive_cps_bind! {
     }
 }
 
-derive_cps_bind_error!(ExprGroup => CpsError::SynGroup);
+// derive_cps_bind_error!(ExprGroup => CpsError::SynGroup);
+
+derive_cps_bind! {
+    ExprGroup {
+        attrs,
+        (pub expr),
+        group_token,
+    } -> {
+        CpsExprGroup
+    }
+}
 
 derive_cps_bind! {
     ExprIndex {

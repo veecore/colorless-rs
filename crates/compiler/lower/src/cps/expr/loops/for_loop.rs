@@ -68,16 +68,16 @@ fn desugar_for_loop_(mut f: ExprForLoop, iter_placeholder: Ident, ctx: &mut CpsC
     // TODO: Use linear_borrow_loop instead... add as ref_mut
     let convert = if colorless {
         let mut pin_borrow: Vec<Stmt> = parse_quote! {
-            pin_local!(#iter_placeholder);
-            borrow_mut!(#iter_placeholder);
+            pin!(#iter_placeholder);
+            borrow!(#iter_placeholder);
         };
         pin_borrow.push(make_stmt_expr(l));
         // FIXME...
         pin_borrow.push(parse_quote! {
-            end_borrow_mut!(#iter_placeholder);
+            unborrow!(#iter_placeholder);
         });
         pin_borrow.push(parse_quote! {
-            unpin_local!(#iter_placeholder);
+            unpin!(#iter_placeholder);
         });
 
         l = make_syn_block_stmts(pin_borrow);

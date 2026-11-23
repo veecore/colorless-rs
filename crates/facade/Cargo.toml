@@ -21,17 +21,32 @@ colorless-std = { workspace = true, optional = true }
 colorless-macros = { workspace = true }
 
 [features]
-default = ["std", "autocomplete"]
-relaxed-drop = ["colorless-macros/relaxed-drop"]
-autocomplete = ["colorless-macros/autocomplete"]
-compiler-cliff-probe = []
+default = ["std", "autocomplete", "desugar-resolve", "color-impl"]
 
+# Compiler features
+relaxed-drop = ["colorless-macros/relaxed-drop"]
+autocomplete = ["colorless-macros/autocomplete", "colorless-std/autocomplete"]
+desugar-resolve = ["colorless-macros/desugar-resolve"]
+no-wrap = ["colorless-macros/no-wrap"]
+out-of-my-way = ["colorless-macros/out-of-my-way"]
+color-impl = ["colorless-macros/color-impl"]
+
+# std & core features
 alloc = ["colorless-core/alloc", "colorless-rt/alloc", "colorless-std?/alloc"]
+rainbow = ["colorless-core/rainbow"]
 std = ["colorless-core/std", "colorless-rt/std", "dep:colorless-std", "colorless-std/std"]
+futures-io = ["colorless-std/futures-io"]
+tokio = ["colorless-std/tokio"]
+nightly = ["colorless-std/nightly"]
+unstable = ["colorless-std/unstable"]
+
+# Dev features
+compiler-cliff-probe = []
 
 [dev-dependencies]
 trybuild = { workspace = true }
 criterion = { workspace = true, features = ["async_tokio"] }
+tokio = { version = "1.37", features = ["full"] }
 
 [[bench]]
 name = "branch"

@@ -140,18 +140,26 @@ impl FoldContext {
     }
 
     #[must_use]
-    pub fn call_erased_as_mut(&self, ident: &Ident) -> Stmt {
+    pub fn call_retrieve_type_unpinned(&self, ident: &Ident, from: &Ident) -> Stmt {
         let krate = &self.config.crate_path;
         parse_quote! {
-            let mut #ident = unsafe { #krate::ErasedBorrow::as_mut(&mut #ident) };
+            let mut #ident = #krate::retrieve_type_unpinned(#ident, #from);
         }
     }
 
     #[must_use]
-    pub fn call_unpin(&self, ident: &Ident) -> Expr {
+    pub fn call_erased_into_mut(&self, ident: &Ident) -> Stmt {
         let krate = &self.config.crate_path;
         parse_quote! {
-            unsafe { #krate::ErasedBorrow::unpin(#ident) }
+            let mut #ident = unsafe { #krate::ErasedBorrow::into_mut(#ident) };
+        }
+    }
+
+    #[must_use]
+    pub fn call_unpin(&self, ident: &Ident) -> Stmt {
+        let krate = &self.config.crate_path;
+        parse_quote! {
+            let mut #ident = unsafe { #krate::ErasedBorrow::unpin(#ident) };
         }
     }
 

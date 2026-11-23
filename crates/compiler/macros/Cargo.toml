@@ -14,11 +14,14 @@ categories.workspace = true
 proc-macro = true
 
 [features]
-default = ["autocomplete"]
 autocomplete = []
+desugar-resolve = []
 relaxed-drop = []
 # todo: we should return C::Erased
-dyn = []
+#dyn = []
+out-of-my-way = []
+no-wrap = []
+color-impl = []
 
 [lints]
 workspace = true

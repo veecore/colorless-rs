@@ -1,3 +1,5 @@
+#![allow(private_bounds)]
+
 //! Synthetic runtime items emitted by `colorless-codegen`.
 //! Not intended for direct human consumption.
 

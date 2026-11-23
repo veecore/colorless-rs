@@ -2,8 +2,9 @@
 #![allow(clippy::never_loop)]
 
 use colorless::{AsyncExt, IdentityExt, colorless, test_util::block_on_test};
-use colorless_core::ready;
+use colorless_core::{Async, ready};
 use std::cell::Cell;
+use std::error::Error;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 
@@ -85,7 +86,7 @@ fn nested_loops_break_outer_drops_heavy_resource() {
     assert!(DROPPED.load());
 }
 
-/// While and while-let loops using `#[colorless::loop_state]`
+/// While and while-let loops using `#[colorless::state]`
 #[test]
 fn while_and_while_let_execution() {
     #[colorless]
@@ -96,7 +97,7 @@ fn while_and_while_let_execution() {
     ) -> Result<i32, &'static str> {
         let mut total = 0;
 
-        #[colorless::loop_state(mut count, abort_at, pub mut total)]
+        #[colorless::state(mut count, abort_at, pub mut total)]
         while count < 5 {
             ready(()).resolve;
             if count == abort_at {
@@ -106,7 +107,7 @@ fn while_and_while_let_execution() {
             count += 1;
         }
 
-        #[colorless::loop_state(pub mut total, mut items)]
+        #[colorless::state(pub mut total, mut items)]
         while let Some(opt_val) = items.pop() {
             ready(()).resolve;
             let Some(val) = opt_val else {
@@ -144,7 +145,7 @@ fn loop_with_reference_drops_on_exit() {
     fn run() {
         loop {
             let h = heavy().resolve;
-            #[colorless::loop_state(h)]
+            #[colorless::state(h)]
             loop {
                 let _ref = &h;
                 break;
@@ -191,11 +192,11 @@ fn nested_loop_shadow_and_inherit_runs() {
     #[colorless]
     fn run() {
         let env = 4;
-        #[colorless::loop_state(env)]
+        #[colorless::state(env)]
         loop {
             assert_eq!(env, 4);
             let env = String::from("bar");
-            #[colorless::loop_state(env)]
+            #[colorless::state(env)]
             loop {
                 assert_eq!(env, "bar");
                 break;
@@ -206,4 +207,51 @@ fn nested_loop_shadow_and_inherit_runs() {
 
     run().sync_();
     block_on_test(run().async_());
+}
+
+#[test]
+fn loop_relock() {
+    // the clone should be cheap
+    #[colorless]
+    trait Lock: Clone {
+        // returns a computation that holds on to lock without clear lifetime
+        // that only gets unlocked on drop
+        fn lock(self);
+    }
+
+    #[colorless(C)]
+    fn run(w: impl Lock<C>) -> Result<(), Box<dyn Error>> {
+        let mut counter = 0;
+
+        #[colorless::state(w, mut counter)]
+        while counter <= 2 {
+            counter += 1;
+            w.clone().lock().resolve;
+        }
+        Ok(())
+    }
+
+    #[derive(Clone)]
+    struct Sink {
+        l: Arc<tokio::sync::Mutex<()>>,
+    }
+
+    #[colorless(color = Async)]
+    impl Lock for Sink {
+        fn lock(self) {
+            let lock = self.l.clone().lock_owned();
+            async move {
+                let _lock = lock.await;
+            }
+        }
+    }
+
+    let s = Sink {
+        l: Arc::new(tokio::sync::Mutex::new(())),
+    };
+
+    let r = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    r.block_on(run(s).async_()).unwrap();
 }

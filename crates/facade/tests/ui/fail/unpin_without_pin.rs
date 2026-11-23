@@ -7,7 +7,7 @@ fn gate<C: Color>() -> impl Colored<C, Output = ()> {
 #[colorless]
 fn unsupported() {
     let mut local = String::from("local");
-    unpin_local!(local);
+    unpin!(local);
     gate().resolve;
 }
 

@@ -5,9 +5,10 @@
 //! cargo run -p colorless --example stream_parser --features relaxed-drop
 //! ```
 
-use colorless::function::{ColoredFnMut, from_async_fn, from_fn};
-use colorless::{AsyncExt, IdentityExt, colorless};
 use colorless_core::test_util::block_on_local_test;
+use colorless_core::{AsyncExt, IdentityExt};
+use colorless_macros::colorless;
+use colorless_std::function::{ColoredFnMut, from_async_fn, from_fn};
 
 /// A key-value record parsed from the stream.
 #[derive(Debug, PartialEq, Eq)]
@@ -31,11 +32,10 @@ where
 {
     let mut count = 0;
 
-    pin_local!(source);
-    pin_local!(sink);
-    borrow_mut!(source, sink);
-    #[colorless::loop_state(mut source, mut sink, pub mut count)]
-    while let Some(line) = reborrow!(source).call_mut(()).resolve {
+    pin!(source);
+    pin!(sink);
+    #[colorless::state(mut source, mut sink, pub mut count)]
+    while let Some(line) = rb!(source).call_mut(()).resolve {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
@@ -46,7 +46,7 @@ where
                 key: key.trim(),
                 value: value.trim(),
             };
-            reborrow!(sink).call_mut(record).resolve?;
+            rb!(sink).call_mut(record).resolve?;
             count += 1;
         }
     }

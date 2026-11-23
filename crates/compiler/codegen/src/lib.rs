@@ -3,6 +3,7 @@
 
 use crate::context::FoldContext;
 use colorless_lower::Config as LoweringConfig;
+pub use colorless_lower::MacroAllowlist;
 use colorless_lower::cps::CpsStep;
 use colorless_lower::ir::CpsBlock;
 use std::mem;
@@ -23,8 +24,13 @@ pub struct Config {
     pub original_block_plain: Option<Block>,
     pub declare_borrow_macros: bool,
     pub no_capture: bool,
-    pub allow_redundant_pin: bool,
+    pub no_wrap: bool,
     pub colorless_into_iterator: Path,
+    pub desugar_resolve: bool,
+    /// Extra macros to allow beyond the built-in allowlist.
+    /// `None` means keep the built-in default; `All` means allow everything;
+    /// `Custom` means augment the built-in list with explicit paths.
+    pub extra_macro_allowlist: MacroAllowlist,
 }
 
 impl Default for Config {
@@ -36,10 +42,12 @@ impl Default for Config {
             original_block_plain: None,
             declare_borrow_macros: true,
             no_capture: false,
-            allow_redundant_pin: false,
+            no_wrap: false,
             colorless_into_iterator: parse_quote!(
                 ::colorless::iter::IntoColoredIterator::into_iter
             ),
+            desugar_resolve: true,
+            extra_macro_allowlist: MacroAllowlist::Default,
         }
     }
 }
@@ -62,13 +70,29 @@ impl Config {
             colorless_into_iterator: self.colorless_into_iterator.clone(),
         };
 
-        config = config.allow_macro_named_str("borrow_mut");
-        config = config.allow_macro_named_str("reborrow");
-        config = config.allow_macro_named_str("end_borrow_mut");
+        config = config.allow_macro_named_str("borrow");
+        config = config.allow_macro_named_str("rb");
+        config = config.allow_macro_named_str("unborrow");
         config = config.allow_macro_named_str("keep_alive");
         // fixme: shadow and doc that it can't control the outer environment
         //  natively
         config = config.allow_macro_named_str("color");
+        config = config.allow_macro_named_str("slot");
+        config = config.allow_macro_named_str("take_slot");
+        config = config.allow_macro_named_str("rbv");
+
+        // Apply user-specified extra allowlist on top of the built-ins.
+        match &self.extra_macro_allowlist {
+            MacroAllowlist::All => {
+                config = config.allow_all_macros();
+            }
+            MacroAllowlist::Custom(paths) => {
+                for path in paths {
+                    config = config.allow_macro_named(path.clone());
+                }
+            }
+            MacroAllowlist::Default | MacroAllowlist::None => {}
+        }
 
         self.generate_from_lowered(block.step_with(config)?)
     }

@@ -7,9 +7,9 @@ fn retains_borrow<'a, C: Color>(value: &'a mut usize) -> impl Colored<C, Output 
 #[colorless]
 fn unsupported() {
     let mut local = 0;
-    pin_local!(local);
-    let retained = retains_borrow(local);
-    unpin_local!(local);
+    pin!(local);
+    let retained = retains_borrow(rb!(local));
+    unpin!(local);
     retained.resolve;
 }
 

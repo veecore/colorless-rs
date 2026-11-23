@@ -1,6 +1,7 @@
+use crate::callbacks::FlatBorrowScope;
 use crate::{
     BorrowScope, BorrowScopeAndThen, BorrowScopeMap, Colored, Cps, Linear, Ready,
-    capabilities::borrow::local::impls::MapScope,
+    capabilities::borrow::local::impls::{FlatBorrowScopeImpl, MapScope},
     capabilities::callbacks::{CallOnce, ColoredCallOnce},
 };
 
@@ -101,9 +102,22 @@ pub trait LocalBorrow: Linear + Sized {
             },
         )
     }
+
+    /// Runs a flat borrow stage without nesting continuation closures.
+    ///
+    /// The owned local is dropped when the stage finishes or is canceled.
+    /// In asynchronous execution contexts, this overlays the scope and the running
+    /// flow in the same state machine slot to prevent polynomial frame growth.
+    fn borrow_flat<L, S>(local: L, s: S) -> impl Colored<Self, Output = S::Resume>
+    where
+        S: FlatBorrowScope<Self, L>,
+    {
+        Self::borrow(local, FlatBorrowScopeImpl(s))
+    }
 }
 
 mod impls {
+    use crate::callbacks::FlatBorrowScope;
     use crate::capabilities::callbacks::ColoredCallOnce;
     use crate::{BorrowScope, Colored, Cps};
 
@@ -124,6 +138,19 @@ mod impls {
             let scope = self.scope;
             let f = self.f;
             C::and_then(scope.resume_mut(var), f)
+        }
+    }
+
+    pub struct FlatBorrowScopeImpl<B>(pub(crate) B);
+
+    impl<B, C, Var> BorrowScope<C, Var> for FlatBorrowScopeImpl<B>
+    where
+        B: FlatBorrowScope<C, Var>,
+    {
+        type Resume = B::Resume;
+
+        fn resume_mut(self, var: &mut Var) -> impl Colored<C, Output = Self::Resume> {
+            self.0.resume_mut_flat(var)
         }
     }
 }

@@ -4,12 +4,13 @@ fn gate<C: Color>() -> impl Colored<C, Output = ()> {
     C::ready(())
 }
 
+// this is no longer valid
 #[colorless]
 fn forged() {
     let mut local = String::from("local");
-    pin_local!(local);
+    pin!(local);
     gate().resolve;
-    __unpin_local!(local);
+    __unpin!(local);
 }
 
 fn main() {}

@@ -95,7 +95,7 @@ let async_data = fetch_payload(42).async_().await;
 ### 3. Streaming Parsers & Callbacks (True Source of Color)
 
 ```rust
-use colorless::{colorless, AsyncExt, IdentityExt, pin_local, borrow_mut, reborrow};
+use colorless::{colorless, AsyncExt, IdentityExt};
 use colorless::function::{ColoredFnMut, from_fn, from_async_fn};
 
 /// A streaming parser that works with sync or async sources and sinks.
@@ -106,14 +106,14 @@ where
     D: ColoredFnMut<(&'a str, &'a str), C, Output = Result<(), ()>>,
 {
     let mut count = 0;
-    pin_local!(source);
-    pin_local!(sink);
-    borrow_mut!(source, sink);
+    // not std pin
+    pin!(source);
+    pin!(sink);
 
-    #[colorless::loop_state(mut source, mut sink, pub mut count)]
-    while let Some(line) = reborrow!(source).call_mut(()).resolve {
+    #[state(mut source, mut sink, pub mut count)]
+    while let Some(line) = rb!(source).call_mut(()).resolve {
         if let Some((key, val)) = line.split_once('=') {
-            reborrow!(sink).call_mut((key.trim(), val.trim())).resolve?;
+            rb!(sink).call_mut((key.trim(), val.trim())).resolve?;
             count += 1;
         }
     }
@@ -161,13 +161,13 @@ Macro-transformed code currently operates under a **relaxed implicit destruction
 
 ### Feature Maturity Matrix
 
-| Feature | Status | Notes |
-| :--- | :--- | :--- |
-| **Direct calls & `.resolve`** | ✅ Ready | Full support for chained, sequential, and nested resolve calls |
-| **Conditionals & Branching** | ✅ Ready | `if`/`else` and `match` expressions crossing resolve points |
-| **Loops** | 🔄 Guided | Supported via explicit `#[loop_state(...)]` annotations |
+| Feature | Status | Notes                                                             |
+| :--- | :--- |:------------------------------------------------------------------|
+| **Direct calls & `.resolve`** | ✅ Ready | Full support for chained, sequential, and nested resolve calls    |
+| **Conditionals & Branching** | ✅ Ready | `if`/`else` and `match` expressions crossing resolve points       |
+| **Loops** | 🔄 Guided | Supported via explicit `#[state(...)]` annotations                |
 | **Local Pinning & Borrowing** | 🧪 Experimental | Handled via audited `colorless-rt` carriers; active research area |
-| **Strict Lexical RAII** | 📋 Roadmap | Planned for the post-alpha production release |
+| **Strict Lexical RAII** | 📋 Roadmap | Planned for the post-alpha production release                     |
 
 ---
 

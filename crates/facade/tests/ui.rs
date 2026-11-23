@@ -9,6 +9,7 @@
 pub mod macro_contract;
 
 #[test]
+#[cfg_attr(miri, ignore)]
 fn macro_ui() {
     let cases = trybuild::TestCases::new();
     cases.pass("tests/ui/pass/*.rs");

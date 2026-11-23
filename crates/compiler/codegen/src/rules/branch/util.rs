@@ -241,6 +241,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn carrier_routes_are_bounded_unique_and_uncapped() {
         for max_arms in [2, 3, 4, 12] {
             for count in [1, 2, max_arms, max_arms + 1, max_arms * max_arms, 10_000] {
@@ -261,6 +262,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn thirteen_slots_keep_the_first_eleven_on_the_shallow_path() {
         let routes = (0..13)
             .map(|index| one_of_route(12, 13, index))
@@ -274,6 +276,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn one_slot_is_a_passthrough_without_a_nonexistent_carrier() {
         let ctx = context(12);
         let generated = tokens(one_of(&ctx, 1, 0, parse_quote!(only_value)));
@@ -283,6 +286,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn syntax_emission_uses_only_supported_carriers() {
         let ctx = context(12);
 

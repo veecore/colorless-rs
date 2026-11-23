@@ -114,7 +114,7 @@ pub trait Cps: Linear + Sized {
 ///    and continuing invokes `next` on corrupted, half-mutated invariants .
 pub unsafe trait Linear {}
 
-#[cfg(test)]
+#[cfg(all(test, feature = "rainbow"))]
 mod pending_lock {
     use crate::Colored;
     use crate::colored::internal::{ColoredInternal, Present};
@@ -196,7 +196,7 @@ mod pending_lock {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "rainbow"))]
 mod builtin_color_test {
     use super::pending_lock::*;
     use crate::{

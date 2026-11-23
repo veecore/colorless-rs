@@ -13,6 +13,7 @@ pub struct FoldContext {
     loop_facts: HashMap<CpsLoopId, LoopFact>,
     pub shadow_request: HashSet<Ident>,
     next_ident: usize,
+    pub unpin_encountered: bool,
 }
 
 pub struct LoopFact {
@@ -42,6 +43,7 @@ impl FoldContext {
             loop_facts: Default::default(),
             shadow_request: Default::default(),
             next_ident: 0,
+            unpin_encountered: false,
         }
     }
 

@@ -117,6 +117,7 @@ ir_enum! {
         Call(CpsExprCall),
         Cast(CpsExprCast),
         Field(CpsExprField),
+        Group(CpsExprGroup),
         Inert(pub CpsInert),
         Index(CpsExprIndex),
         Let(CpsExprLet),
@@ -178,6 +179,12 @@ pub struct CpsExprField {
     pub base: Box<CpsExpr>,
     pub dot_token: Token![.],
     pub member: Member,
+}
+
+#[derive(Clone, Debug)]
+pub struct CpsExprGroup {
+    pub group_token: token::Group,
+    pub expr: Box<CpsExpr>,
 }
 
 // Base could be inert and not sometimes... in
@@ -421,11 +428,12 @@ mod convert_impls {
         CpsExprRange, CpsExprRawAddr, CpsExprReference, CpsExprRepeat, CpsExprStruct, CpsExprUnary,
         CpsExprYield, CpsFieldValue,
     };
-    use crate::ir::{CpsExprBlock, IntoSyn};
+    use crate::ir::{CpsExprBlock, CpsExprGroup, IntoSyn};
     use syn::{
         Expr, ExprAssign, ExprAwait, ExprBinary, ExprBlock, ExprCall, ExprCast, ExprField,
-        ExprIndex, ExprLet, ExprMacro, ExprMethodCall, ExprParen, ExprRange, ExprRawAddr,
-        ExprReference, ExprRepeat, ExprStruct, ExprUnary, ExprYield, FieldValue, Macro,
+        ExprGroup, ExprIndex, ExprLet, ExprMacro, ExprMethodCall, ExprParen, ExprRange,
+        ExprRawAddr, ExprReference, ExprRepeat, ExprStruct, ExprUnary, ExprYield, FieldValue,
+        Macro,
     };
 
     impl IntoSyn<Expr> for CpsExpr {
@@ -501,6 +509,15 @@ mod convert_impls {
             member,
         } -> {
             CpsExprField
+        }
+    }
+    derive_into_syn! {
+        ExprGroup {
+            _ attrs,
+            (pub expr),
+            group_token,
+        } -> {
+            CpsExprGroup
         }
     }
     derive_into_syn! {

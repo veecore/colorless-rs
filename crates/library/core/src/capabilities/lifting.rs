@@ -5,6 +5,12 @@ use crate::capabilities::callbacks::{ColoredThunkOnce, ThunkOnce};
 pub trait Ready: Sized {
     /// Creates a computation that immediately yields `value`.
     fn ready<T>(value: T) -> impl Colored<Self, Output = T>;
+
+    #[inline(always)]
+    #[allow(missing_docs)] // todo
+    fn ready_fn<F: ThunkOnce>(func: F) -> impl Colored<Self, Output = F::Value> {
+        Self::ready(func())
+    }
 }
 
 /// When writing code generic across execution models, a fundamental question might be:

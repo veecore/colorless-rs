@@ -1,15 +1,11 @@
+use crate::config::Config;
 use crate::function::expand_fn_from;
-use crate::{config::Config, util::add_generic};
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{ItemFn, ItemTrait, Result, TraitItem, TraitItemFn, Visibility, parse_quote};
 
-pub fn expand(config: Config, mut trait_item: ItemTrait) -> Result<TokenStream> {
-    let color_generic = config
-        .color
-        .get_or_create_generic_color(&trait_item.generics)?;
-
-    trait_item.generics = add_generic(trait_item.generics, &config.crate_path, &color_generic);
+pub fn expand(mut config: Config, mut trait_item: ItemTrait) -> Result<TokenStream> {
+    config.or_add_generic(&mut trait_item.generics, false);
 
     trait_item.items = trait_item
         .items

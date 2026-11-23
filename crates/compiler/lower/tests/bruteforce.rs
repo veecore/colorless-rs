@@ -37,11 +37,11 @@ fn unify_value<T>(a: T, _b: PhantomData<T>) -> T {
 #[allow(dead_code, unreachable_code, unused_mut)]
 fn nested_loop_state_always_continue_outer() {
     let mut env = String::from("outer");
-    #[colorless::loop_state(env)]
+    #[colorless::state(env)]
     'a: loop {
         assert_eq!(env, "outer");
         let mut ee = String::from("outer_ee");
-        #[colorless::loop_state(ee)]
+        #[colorless::state(ee)]
         'b: loop {
             if true {
                 continue 'a;
@@ -68,7 +68,7 @@ fn nested_loop_state_always_continue_outer() {
 #[allow(dead_code, unreachable_code)]
 fn two_independent_same_label_loops() {
     let mut env = String::from("outer");
-    #[colorless::loop_state(env)]
+    #[colorless::state(env)]
     'a: loop {
         loop {
             if true {
@@ -342,7 +342,7 @@ fn try_operator_inside_loop_state_for_loop_succeeds() {
     #[cps_fn]
     fn run(start: String) -> Result<String, i32> {
         let mut c = start;
-        #[colorless::loop_state(pub c)]
+        #[colorless::state(pub c)]
         for _ in 0..5 {
             c = passthrough(c)?;
         }

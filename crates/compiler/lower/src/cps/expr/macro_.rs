@@ -103,6 +103,7 @@ pub fn is_known_pure_macro(mac: &Macro) -> bool {
                 | "line"
                 | "column"
                 | "module_path"
+                | "cfg"
         )
     } else if let Some(last) = mac.path.segments.last() {
         matches!(

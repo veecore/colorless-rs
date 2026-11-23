@@ -633,7 +633,7 @@ fn mutable_vec_across_loop_contains_all_elements() {
     #[cps_fn]
     fn run(n: usize) -> Vec<usize> {
         let mut out = Vec::new();
-        #[colorless::loop_state(out)]
+        #[colorless::state(out)]
         for i in 0..n {
             out.push(i);
         }
@@ -729,7 +729,7 @@ fn loop_state_carries_binding_across_iterations() {
     fn run(rounds: u32) -> u32 {
         let mut total = 0_u32;
         let mut i = 0_u32;
-        #[colorless::loop_state(total)]
+        #[colorless::state(total)]
         loop {
             if i >= rounds {
                 break total;
@@ -752,7 +752,7 @@ fn loop_state_body_shadow_does_not_corrupt_carried_value() {
     fn run() -> String {
         let mut carried = String::from("outer");
         let mut round = 0_u8;
-        #[colorless::loop_state(carried, round)]
+        #[colorless::state(carried, round)]
         loop {
             // Shadow `carried` inside the body — the carried value must be unaffected.
             let carried = String::from("shadow");
@@ -776,7 +776,7 @@ fn loop_state_pub_binding_is_visible_after_loop() {
     #[cps_fn]
     fn run(items: Vec<i32>) -> i32 {
         let mut sum = 0_i32;
-        #[colorless::loop_state(pub sum)]
+        #[colorless::state(pub sum)]
         for x in items {
             sum += x;
         }
@@ -794,7 +794,7 @@ fn loop_state_early_return_exits_function() {
     #[cps_fn]
     fn run(items: Vec<i32>) -> Result<i32, i32> {
         let mut sum = 0;
-        #[colorless::loop_state(sum)]
+        #[colorless::state(sum)]
         for x in items {
             if x < 0 {
                 return Err(x);
@@ -1208,7 +1208,7 @@ fn loop_state_survives_cross_level_continue() {
     fn run() -> u32 {
         let mut total = 0_u32;
         let mut i = 0_u32;
-        #[colorless::loop_state(total)]
+        #[colorless::state(total)]
         'outer: loop {
             if i >= 5 {
                 break;
@@ -1379,7 +1379,7 @@ fn return_from_loop_state_inner_loop_bypasses_outer_break_continuation() {
     fn run(abort: bool, hits: &mut usize) -> Result<String, &'static str> {
         let result = 'outer: loop {
             let mut payload = String::from("payload");
-            #[colorless::loop_state(payload)]
+            #[colorless::state(payload)]
             loop {
                 if abort {
                     return Err("abort from inner");
@@ -1447,7 +1447,7 @@ fn canonical_continuation_rehydrates_carried_binding_not_body_shadow() {
         let mut env = String::from("outer");
         let mut flag = take_first_path;
 
-        #[colorless::loop_state(env, flag)]
+        #[colorless::state(env, flag)]
         loop {
             let env = String::from("body shadow");
             assert_eq!(env, "body shadow");
@@ -1481,7 +1481,7 @@ fn two_sequential_loop_state_loops_are_independent() {
         let mut env = String::from("outer");
         let mut remaining = 2_u8;
 
-        #[colorless::loop_state(env, remaining)]
+        #[colorless::state(env, remaining)]
         loop {
             let env = String::from("first-loop shadow");
             assert_eq!(env, "first-loop shadow");
@@ -1491,7 +1491,7 @@ fn two_sequential_loop_state_loops_are_independent() {
         // env is still "outer" here — first loop's shadow is gone.
         assert_eq!(env, "outer");
 
-        #[colorless::loop_state(env, remaining)]
+        #[colorless::state(env, remaining)]
         loop {
             remaining -= 1;
             if remaining == 0 {
@@ -1514,21 +1514,21 @@ fn three_identically_spelled_loop_state_frames_are_independent() {
         let value = String::from("outer");
         (
             {
-                #[colorless::loop_state(value)]
+                #[colorless::state(value)]
                 loop {
                     break value;
                 }
             },
             {
                 let value = String::from("middle");
-                #[colorless::loop_state(value)]
+                #[colorless::state(value)]
                 loop {
                     break value;
                 }
             },
             {
                 let value = String::from("inner");
-                #[colorless::loop_state(value)]
+                #[colorless::state(value)]
                 loop {
                     break value;
                 }
@@ -1556,7 +1556,7 @@ fn labeled_cross_loop_routing_carries_correct_frame_prefix() {
         let mut outer_round = 0_u8;
         let mut log = Vec::new();
 
-        #[colorless::loop_state(pub env, outer_round, pub log)]
+        #[colorless::state(pub env, outer_round, pub log)]
         'outer: loop {
             assert_eq!(env, "outer");
             log.push("outer-enter");
@@ -1564,7 +1564,7 @@ fn labeled_cross_loop_routing_carries_correct_frame_prefix() {
             let env = String::from("inner");
             let mut inner_round = 0_u8;
 
-            #[colorless::loop_state(env, inner_round)]
+            #[colorless::state(env, inner_round)]
             'inner: loop {
                 assert_eq!(env, "inner");
 

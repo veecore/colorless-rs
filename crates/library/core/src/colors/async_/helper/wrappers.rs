@@ -63,6 +63,24 @@ macro_rules! declare_wrappers {
             Deciding(ManuallyDrop<F>),
         }
 
+        /// Manual async borrow state machine for [`LocalBorrow::borrow_flat`].
+        ///
+        /// Unlike the `async move` path used by [`LocalBorrow::borrow`], this state machine
+        /// overlays the scope and the running flow in the same union-sized enum slot, so
+        /// stacked borrows grow O(N) instead of O(N²).
+        struct AsyncBorrow<L, S $(,$g)?>
+        where
+            S: FlatBorrowScope<$color$(<$g>)?, L>,
+        {
+            local: ManuallyDrop<core::cell::UnsafeCell<L>>,
+            phase: BorrowPhase<S, S::Flow>,
+        }
+
+        enum BorrowPhase<S, F> {
+            NotStarted(ManuallyDrop<S>),
+            Running(ManuallyDrop<F>),
+        }
+
         // it seems better to stay on colored's side
         #[cfg(feature = "alloc")]
         pub struct AsyncErased<'a, Output $(,$g)?>(::alloc::boxed::Box<dyn Colored<$color$(<$g>)?, Output = Output, OutputInternal = Output> + 'a>);
@@ -423,11 +441,11 @@ macro_rules! declare_wrappers {
             ) -> Poll<<$color$(<$g>)? as Present>::Value<F::Break>> {
                 let this = unsafe { self.get_unchecked_mut() };
 
-                let _f_unwind_guard = UnwindGuard(&mut *this.f);
-
                 loop {
                     let state = match &mut this.phase {
                         LoopFoldPhase::Deciding(flow) => {
+                            let _f_unwind_guard = UnwindGuard(&raw mut *this.f);
+
                             macro_rules! on_ready {
                                 () => {
                                      // If this panics, `f` and `state` are dropped by unwinding.
@@ -454,6 +472,7 @@ macro_rules! declare_wrappers {
 
                                 state on_ready_ok: {
                                     on_ready!();
+                                    core::mem::forget(_f_unwind_guard);
 
                                     state
                                 }
@@ -467,7 +486,9 @@ macro_rules! declare_wrappers {
                         }
                     };
 
-                    let flow = (this.f)(state);
+                    let mut map = unsafe { ManuallyDrop::take(&mut this.f) };
+                    let flow = map(state);
+                    this.f = ManuallyDrop::new(map);
                     this.phase = LoopFoldPhase::Deciding(ManuallyDrop::new(flow));
                 }
             }
@@ -507,6 +528,93 @@ macro_rules! declare_wrappers {
         {
             type Output = F::Break;
         }
+
+        // ── AsyncBorrow Implementation ─────────────────────────────────────────────────
+
+        unsafe impl<L, S $(,$g)?> ColoredInternal<$color$(<$g>)?> for AsyncBorrow<L, S $(,$g)?>
+        where
+            S: FlatBorrowScope<$color$(<$g>)?, L>,
+        {
+            type OutputInternal = S::Resume;
+
+            unsafe fn poll_colored(
+                self: Pin<&mut Self>,
+                cx: &mut Context<'_>,
+            ) -> Poll<<$color$(<$g>)? as Present>::Value<S::Resume>> {
+                let this = unsafe { self.get_unchecked_mut() };
+                loop {
+                    match &mut this.phase {
+                        BorrowPhase::NotStarted(scope) => {
+                            core::hint::cold_path();
+                            let s = unsafe { ManuallyDrop::take(scope) };
+                            // SAFETY: `this` is pinned; `this.local` is never moved.
+                            // ErasedBorrow erases the lifetime via NonNull, so S::Flow
+                            // carries no borrow of `this.local`.
+                            let ptr: *mut L = this.local.get();
+                            let _local_guard = UnwindGuard(ptr);
+                            let flow = s.resume_mut_flat(unsafe { &mut *ptr });
+                            core::mem::forget(_local_guard);
+                            this.phase = BorrowPhase::Running(ManuallyDrop::new(flow));
+                        }
+                        BorrowPhase::Running(flow) => {
+                            let ptr: *mut L = this.local.get();
+                            let _local_guard = UnwindGuard(ptr);
+                            let poll = unsafe {
+                                Pin::new_unchecked(flow.deref_mut()).poll_colored(cx)
+                            };
+                            core::mem::forget(_local_guard);
+                            return poll;
+                        }
+                    }
+                }
+            }
+
+            unsafe fn finalize_ready(self: Pin<&mut Self>) {
+                let this = unsafe { self.get_unchecked_mut() };
+                match &mut this.phase {
+                    BorrowPhase::Running(flow) => {
+                        let ptr: *mut L = this.local.get();
+                        let _local_guard = UnwindGuard(ptr);
+                        unsafe { Pin::new_unchecked(flow.deref_mut()).finalize_ready() };
+                        drop(_local_guard);
+                    }
+                    _ => unsafe { unreachable_unchecked() },
+                }
+            }
+        }
+
+        impl<L, S $(,$g)?> Drop for AsyncBorrow<L, S $(,$g)?>
+        where
+            S: FlatBorrowScope<$color$(<$g>)?, L>,
+        {
+            fn drop(&mut self) {
+                unsafe {
+                    let ptr: *mut L = self.local.get();
+                    let _local_guard = UnwindGuard(ptr);
+                    match &mut self.phase {
+                        BorrowPhase::NotStarted(scope) => {
+                            ManuallyDrop::drop(scope);
+                        }
+                        BorrowPhase::Running(flow) => {
+                            ManuallyDrop::drop(flow);
+                        }
+                    }
+                    drop(_local_guard);
+                }
+            }
+        }
+
+        impl<L, S $(,$g)?> Colored<$color$(<$g>)?> for AsyncBorrow<L, S $(,$g)?>
+        where
+            S: FlatBorrowScope<$color$(<$g>)?, L>,
+        {
+            type Output = S::Resume;
+        }
+
+        unsafe impl<L: Send, S: Send $(,$g)?> Sync for AsyncBorrow<L, S $(,$g)?>
+        where
+            S: FlatBorrowScope<$color$(<$g>)?, L>,
+        {}
 
         // ── AsyncErased Implementation ───────────────────────────────────────────────────
 

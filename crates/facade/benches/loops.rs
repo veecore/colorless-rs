@@ -55,7 +55,7 @@ async fn native_async_sum_ref(acc: &mut i64, n: i64) -> i64 {
 fn colored_fold_sum(n: i64) -> i64 {
     let mut sum = 0i64;
     let mut i = 0i64;
-    #[loop_state(pub mut sum, mut i, n)]
+    #[state(pub mut sum, mut i, n)]
     while i < n {
         let v = colorless::ready(i).resolve;
         sum += v;
@@ -69,7 +69,7 @@ fn colored_fold_sum(n: i64) -> i64 {
 #[inline(never)]
 fn colored_fold_ref_sum(acc: &mut i64, n: i64) -> i64 {
     let mut i = 0i64;
-    #[loop_state(mut acc, mut i, n)]
+    #[state(mut acc, mut i, n)]
     // while couldn't be used due to the current threading issue in codegen
     loop {
         if i < n {

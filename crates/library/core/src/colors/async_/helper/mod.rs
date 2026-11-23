@@ -96,6 +96,7 @@ macro_rules! define_async {
         use crate::capabilities::callbacks::{
             CallOnce, ColoredCallFold, ColoredCallOnce, ColoredThunkOnce, ThunkOnce,
         };
+        use crate::callbacks::FlatBorrowScope;
         use crate::{
             BorrowScope, BorrowScopeAndThen, BorrowScopeMap, BorrowUsageMap, Colored, Colorize, Cps, Linear,
             LocalBorrow, Ready, Wrap,
@@ -196,8 +197,6 @@ macro_rules! define_async {
         unsafe impl$(<$g>)? Linear for $color$(<$g>)? {}
 
         impl$(<$g>)? LocalBorrow for $color$(<$g>)? {
-            // TODO: SINCE THE COMPILER ACTIVELY USES THIS, WE COULD MANUALLY IMPLEMENT TO AVOID
-            //  BLOAT
             #[inline(always)]
             fn borrow<L, S>(mut local: L, s: S) -> impl Colored<Self, Output = S::Resume>
             where
@@ -276,6 +275,17 @@ macro_rules! define_async {
                     $(, PhantomData::<$g>)?
                 )
             }
+
+            #[inline(always)]
+            fn borrow_flat<L, S>(local: L, s: S) -> impl Colored<Self, Output = S::Resume>
+            where
+                S: FlatBorrowScope<Self, L>,
+            {
+                AsyncBorrow {
+                    local: ManuallyDrop::new(core::cell::UnsafeCell::new(local)),
+                    phase: BorrowPhase::NotStarted(ManuallyDrop::new(s)),
+                }
+            }
         }
 
         impl$(<$g>)? LinearBorrow1 for $color$(<$g>)? {
@@ -335,8 +345,7 @@ macro_rules! define_async {
                     async move {
                         loop {
                             let c = <_ as ColoredLoop<Self>>::repeat(f);
-                            let control = c.$ext().await;
-                            $exec!(@loop control => x f = x)
+                            $exec!(@loop c.$ext().await => x f = x)
                         }
                     }
                     $(, PhantomData::<$g>)?

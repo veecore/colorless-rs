@@ -1,11 +1,11 @@
 error[E0499]: cannot borrow value as mutable more than once at a time
   --> tests/ui/fail/borrow_escapes_before_unpin.rs:12:5
    |
-11 |     let retained = retains_borrow(local);
-   |                                   ----- first mutable borrow occurs here
-12 |     unpin_local!(local);
-   |     ^^^^^^^^^^^^^^^^^^^ second mutable borrow occurs here
+11 |     let retained = retains_borrow(rb!(local));
+   |                                   ---------- first mutable borrow occurs here
+12 |     unpin!(local);
+   |     ^^^^^^^^^^^^^ second mutable borrow occurs here
 13 |     retained.resolve;
    |     -------- first borrow later used here
    |
-   = note: this error originates in the macro `unpin_local` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the macro `unpin` (in Nightly builds, run with -Z macro-backtrace for more info)

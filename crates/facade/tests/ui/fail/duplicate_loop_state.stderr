@@ -1,5 +1,5 @@
 error: a loop-state binding may be listed only once
-  --> tests/ui/fail/duplicate_loop_state.rs:10:40
+  --> tests/ui/fail/duplicate_loop_state.rs:10:35
    |
-10 |     #[colorless::loop_state(mut state, state)]
-   |                                        ^^^^^
+10 |     #[colorless::state(mut state, state)]
+   |                                   ^^^^^

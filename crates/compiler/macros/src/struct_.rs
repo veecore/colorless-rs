@@ -1,18 +1,15 @@
 use crate::config::Config;
-use crate::util::add_color_generic;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{Fields, ItemStruct, parse_quote};
 
-pub fn expand(config: Config, mut struct_: ItemStruct) -> syn::Result<TokenStream> {
-    let color_generic = config
-        .color
-        .get_or_create_generic_color(&struct_.generics)?;
+pub fn expand(mut config: Config, mut struct_: ItemStruct) -> syn::Result<TokenStream> {
+    // add __C: ::colorless::Color = ::colorless::Identity
+    config.or_add_generic(&mut struct_.generics, false); // todo: maybe later
 
-    // add __C: ::colorless::Color = ::colorless::Identity and Phantom
-    let crate_path = &config.crate_path;
-    struct_.generics = add_color_generic(struct_.generics, crate_path, &color_generic, true);
+    let color_generic = config.unwrap_generic_color()?;
 
+    // add Phantom
     match &mut struct_.fields {
         // todo: choose an unused field name
         Fields::Named(named_fields) => named_fields.named.push(parse_quote! {

@@ -119,8 +119,8 @@ trait CheckoutGateway {
         let mut priced_lines = Vec::new();
         let gateway = self;
 
-        #[default_break_state]
-        #[colorless::loop_state(
+        #[default_state]
+        #[colorless::state(
             pub mut account_id,
             pub mut coupon,
             pub mut expedited,

@@ -102,7 +102,7 @@ use syn::{Item, parse_macro_input};
 ///
 /// # Argument forms
 ///
-/// The attribute accepts zero or one argument.
+/// The attribute accepts zero or more arguments (comma-separated).
 ///
 /// ## `#[colorless]` — auto generic (default)
 ///
@@ -152,12 +152,82 @@ use syn::{Item, parse_macro_input};
 /// #[colorless(color = Async)]
 /// async fn fetch(url: &str) -> String {
 ///     // body is lowered specifically for Async
-///     todo!()
+/// # stringify!(
+///     ...
+/// # )
 /// }
 /// ```
 ///
 /// > **Note:** `color = T` accepts any type, not just the built-in colors.
 /// > You can pass a path to your own `Color` alias.
+///
+/// ## `#[colorless(allow_macros(…))]` — permit custom macros
+///
+/// By default, the colorless lowering pass rejects macro invocations that are
+/// unknown to it. `allow_macros` lets you opt specific macros in, either one
+/// by one or all at once.
+///
+/// **Allow a specific macro (or several):**
+///
+/// ```rust,ignore
+/// use colorless::*;
+///
+/// macro_rules! my_log {
+///     ($msg:expr) => { eprintln!("[LOG] {}", $msg); };
+/// }
+///
+/// #[colorless(allow_macros(my_log))]
+/// fn greet(name: &str) {
+///     my_log!(name);               // ✅ explicitly allowed
+///     let _r = do_something().resolve;
+///     my_log!("done");
+/// }
+/// ```
+///
+/// Multiple macros are separated by commas:
+///
+/// ```rust,ignore
+/// #[colorless(allow_macros(my_log, some_crate::emit_span))]
+/// fn traced(x: i32) -> i32 {
+/// # stringify!(
+///     ...
+/// # )
+/// }
+/// ```
+///
+/// **Allow all macros (`all`):**
+///
+/// ```rust,ignore
+/// #[colorless(allow_macros(all))]
+/// fn liberal(x: i32) -> i32 {
+///     any_macro!(x);   // ✅ any macro is accepted
+/// # stringify!(
+///     ...
+/// # )
+/// }
+/// ```
+///
+/// > **Caution:** `allow_macros(all)` trusts that every macro in the function
+/// > body is safe to split across a `.resolve` boundary. Only use it when you
+/// > control all macros involved or have verified they are CPS-safe.
+///
+/// **Combined with a color argument:**
+///
+/// ```rust,ignore
+/// #[colorless(C, allow_macros(my_log))]
+/// fn logged_add<C: Color>(a: i32, b: i32) -> i32 {
+/// # stringify!(
+///     ...
+/// # )
+/// }
+///
+/// #[colorless(color = Async, allow_macros(my_log))]
+/// async fn logged_fetch(url: &str) -> String {
+/// # stringify!(
+///     ...
+/// # )
+/// }
+/// ```
 ///
 /// # Applying to a trait
 ///
@@ -301,7 +371,7 @@ use syn::{Item, parse_macro_input};
 /// |-------------|--------|
 /// | Cannot be `async fn` | The function is already execution-generic; use `.resolve` instead of `.await` |
 /// | Cannot be `const fn` | `const` traits are not yet stable in Rust |
-/// | Only one argument allowed | `#[colorless(A, B)]` is a compile error |
+/// | Only one color argument allowed | `#[colorless(A, B)]` is a compile error (use `#[colorless(C, allow_macros(...))]` to combine color with configuration) |
 /// | Cannot be applied to modules, enums, or type aliases | Only `fn`, `trait`, `impl`, and `struct` |
 ///
 /// # Destruction semantics

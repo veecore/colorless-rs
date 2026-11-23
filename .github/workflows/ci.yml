@@ -8,7 +8,9 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # ── 1. Format ────────────────────────────────────────────────────────────────
   format:
+    name: Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,33 +19,132 @@ jobs:
           components: rustfmt
       - run: cargo fmt --all -- --check
 
-  test:
+  # ── 2. Lint (clippy) ─────────────────────────────────────────────────────────
+  clippy:
+    name: Clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.95
-      # `cargo check --tests` builds only metadata for the facade itself,
-      # while its direct proc-macro integration tests must link that facade.
-      # `cargo test --no-run` is the correct all-test-target build gate.
-      - run: cargo check --workspace --lib --bins --examples --features="relaxed-drop"
+        with:
+          components: clippy
+      - run: cargo clippy --workspace --features="relaxed-drop" -- -D warnings
+
+  # ── 3. Doc check ─────────────────────────────────────────────────────────────
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95
+      - run: RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+
+  # ── 4. Debug test suite ──────────────────────────────────────────────────────
+  #
+  # Catches logic errors with full debug info and unoptimised codegen.
+  # Runs the full workspace including UI / trybuild tests.
+  test-debug:
+    name: Test (debug)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95
+      # Build gate: reject compilation errors in all test targets before running.
       - run: cargo test --workspace --no-run --features="relaxed-drop"
       - run: cargo test --workspace --features="relaxed-drop"
+      # UI / trybuild tests are gated on the flag but have their own invocation
+      # in the existing CI; keep it explicit so failures are attributed clearly.
       - run: cargo test -p colorless --test macro_contract --features="relaxed-drop"
       - run: cargo test -p colorless --test ui --features="relaxed-drop"
 
-  docs:
+  # ── 5. Release test suite ────────────────────────────────────────────────────
+  #
+  # This is the layer that caught the loop_reborrow SIGSEGV. Optimised codegen
+  # and inlining expose UB that debug builds hide (dangling pointers through
+  # inlined closures, miscompiled reborrow paths, etc.).
+  test-release:
+    name: Test (release)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.95
-      - run: cargo doc --workspace --no-deps
+      - run: cargo test --workspace --release --features="relaxed-drop"
+      # Explicit high-value targets — if the workspace sweep above is split or
+      # filtered in future, these pinned invocations remain as a hard floor.
+      - run: cargo test -p colorless --test loop_execution --release --features="relaxed-drop"
+      - run: cargo test -p colorless --test borrow       --release --features="relaxed-drop"
+      - run: cargo test -p colorless --test ownership    --release --features="relaxed-drop"
 
-  nightly:
+  # ── 6. no_std / alloc-only build ─────────────────────────────────────────────
+  #
+  # Prevents std leaking into the library crates via transitive deps.
+  no-std:
+    name: no_std build
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95
+        with:
+          targets: thumbv7m-none-eabi
+      - run: cargo check -p colorless-core --target thumbv7m-none-eabi
+      - run: cargo check -p colorless-rt   --target thumbv7m-none-eabi
+
+  # ── 7. Nightly feature check ─────────────────────────────────────────────────
+  nightly-check:
+    name: Nightly feature check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo +nightly check -p colorless-std --features nightly
+
+  # ── 8. Miri ──────────────────────────────────────────────────────────────────
+  #
+  # Catches Stacked Borrows violations, dangling pointers, and other UB that
+  # neither the compiler nor release tests can find at runtime.
+  #
+  # Coverage: every crate that contains unsafe code.
+  #   • colorless-rt    — LocalCell, MaybeUnpinned, ErasedBorrow, DefaultLoopState
+  #   • colorless-core  — async helpers, wrappers, adapters, fold/loop combinators
+  #   • borrow          — pin!/unpin!, reborrow across resolves
+  #   • loop_execution  — loop_reborrow (the case that crashed in release)
+  #   • ownership       — move / drop ordering across colored blocks
+  #   • blocks          — scope-continuation control flow in async and identity
+  #
+  # Compiler crates (codegen, lower, macros, dev-macros) are proc-macros;
+  # Miri cannot run them and they contain no unsafe runtime code.
+  #
+  # Miri is slow; we run all targets in parallel (fail-fast: false) so every
+  # failure surface is visible in a single CI run.
+  miri:
+    name: Miri (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false   # see all failures, not just the first
+      matrix:
+        include:
+          # ── library/rt: LocalCell, borrows, loop state ──────────────────────
+          - target: colorless-rt
+            cmd: cargo +nightly miri test -p colorless-rt
+
+          # ── library/core: ALL unit tests (async wrappers, fold, drop tests) ─
+          - target: colorless-core
+            cmd: cargo +nightly miri test -p colorless-core --lib --features="rainbow"
+
+          # ── facade integration tests ─────────────────────────────────────────
+          - target: colorless-facade
+            cmd: cargo +nightly miri test -p colorless --features="relaxed-drop"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: miri
-      - run: cargo +nightly check -p colorless-std --features nightly
-      - run: cargo +nightly miri test -p colorless-rt
+      - name: Set up Miri
+        run: cargo +nightly miri setup
+      - name: ${{ matrix.target }}
+        run: ${{ matrix.cmd }}
+        env:
+          # Tree Borrows is stricter than Stacked Borrows for self-referential
+          # patterns; keep SB (the default) for now and add TB as an experiment
+          # once the borrow model is fully settled.
+          MIRIFLAGS: "-Zmiri-strict-provenance"

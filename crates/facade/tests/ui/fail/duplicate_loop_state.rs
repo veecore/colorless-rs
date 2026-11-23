@@ -7,7 +7,7 @@ fn gate<C: Color>() -> impl Colored<C, Output = ()> {
 #[colorless]
 fn unsupported() {
     let mut state = 0;
-    #[colorless::loop_state(mut state, state)]
+    #[colorless::state(mut state, state)]
     loop {
         gate().resolve;
         state += 1;

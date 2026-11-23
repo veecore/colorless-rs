@@ -95,6 +95,16 @@ pub trait Loop: Linear + Sized {
     {
         Self::loop_((state, step))
     }
+
+    #[cfg(any())]
+    #[inline(always)]
+    fn fold_mut<S, K, F>(state_mut: S, state: K, step: F) -> impl Colored<Self, Output = F::Break>
+    where
+        F: ColoredCallFoldMut<Self, S, K>,
+        Self: Cps + LocalBorrow,
+    {
+        Self::borrow(state_mut, LoopMutScope(state, step))
+    }
 }
 
 /// A single loop-step type that can repeat itself inside a [`Loop`] context.
@@ -148,8 +158,8 @@ pub trait ColoredLoop<C>: Sized {
 }
 
 mod impls {
-    use crate::callbacks::ColoredCallFold;
-    use crate::{Colored, ColoredLoop, Cps};
+    use crate::callbacks::{ColoredCallFold, ColoredCallFoldMut};
+    use crate::{BorrowScope, Colored, ColoredLoop, Cps, Loop};
     use core::ops::ControlFlow;
 
     impl<C: Cps, State, F> ColoredLoop<C> for (State, F)
@@ -165,6 +175,22 @@ mod impls {
                 ControlFlow::Continue(c) => ControlFlow::Continue((c, self.1)),
                 ControlFlow::Break(b) => ControlFlow::Break(b),
             })
+        }
+    }
+
+    #[allow(dead_code)]
+    pub(super) struct LoopMutScope<K_, F_>(pub(super) K_, pub(super) F_);
+
+    impl<C, S, K_, F_> BorrowScope<C, S> for LoopMutScope<K_, F_>
+    where
+        F_: ColoredCallFoldMut<C, S, K_>,
+        C: Loop + Cps,
+    {
+        type Resume = F_::Break;
+
+        #[inline(always)]
+        fn resume_mut(mut self, var: &mut S) -> impl Colored<C, Output = Self::Resume> {
+            C::loop_((self.0, move |k| self.1(var, k)))
         }
     }
 }
@@ -266,5 +292,31 @@ mod tests {
 
         let r = block_on_test(f.async_());
         assert_eq!(r, 2)
+    }
+
+    #[cfg(any())]
+    #[test]
+    fn iter_next() {
+        trait Iterator<C> {
+            type Item;
+
+            fn next(&mut self) -> impl Colored<C, Output = Option<Self::Item>>;
+        }
+
+        /*
+            for x in colored_iter {}
+        */
+
+        fn run<C: Color>(i: impl Iterator<C, Item = ()>) -> impl Colored<C, Output = ()> {
+            C::fold_mut(i, (), |x, k| {
+                C::map(x.next(), |x1| match x1 {
+                    Some(x1) => {
+                        println!("{x1:#?}");
+                        ControlFlow::Continue(())
+                    }
+                    None => ControlFlow::Break(()),
+                })
+            })
+        }
     }
 }

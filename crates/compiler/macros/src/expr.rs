@@ -1,12 +1,14 @@
+use crate::config::WrapPolicy;
 use crate::{
-    config::{Color, Config, DropTiming},
+    config::{AllowMacros, Color, Config, DropTiming},
     inert::{generate_inert_body, with_original_validation},
     util::wrap_in_resolvable,
 };
+use colorless_codegen::MacroAllowlist;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
-use syn::{Attribute, Block, Result, Stmt, Token, Type, parse_quote};
+use syn::{Attribute, Block, Expr, Result, Stmt, Token, Type, parse_quote};
 
 pub struct ColorInput {
     pub config: Config,
@@ -27,6 +29,12 @@ pub fn expand(input: ColorInput) -> Result<TokenStream> {
                 "`color! {}` does not take generic color",
             ));
         }
+        Color::DeclaredGeneric(dg) => {
+            return Err(syn::Error::new_spanned(
+                dg,
+                "`color! {}` does not take predefined generic color",
+            ));
+        }
         Color::Specific(s) => s.clone(),
         Color::Auto => {
             parse_quote!(_)
@@ -45,21 +53,31 @@ pub fn expand_block(
 ) -> Result<Block> {
     assert!(matches!(config.drop_timing, DropTiming::Relaxed));
 
-    let crate_path = config.crate_path.clone();
+    let crate_path = &config.crate_path;
 
-    let mut codegen_config = colorless_codegen::Config {
-        max_one_of_arms: 12,
-        color_type: color_type.clone(),
-        crate_path: parse_quote!(#crate_path::__compiler),
-        // inert strips off the resolves... if it has none, then we could safely use it
-        original_block_plain: Some(generate_inert_body(block.clone(), color_type, &crate_path)),
-        declare_borrow_macros: true,
-        no_capture: !capture,
-        allow_redundant_pin: false,
-        colorless_into_iterator: parse_quote!(#crate_path::iter::IntoColoredIterator::into_iter),
+    let mut original_block_plain = Some(generate_inert_body(
+        block.clone(),
+        color_type,
+        &config.crate_path,
+    ));
+
+    let folded_expr = if config.dev_mode || cfg!(feature = "out-of-my-way") {
+        std::hint::cold_path();
+
+        // would cause type inference issues
+        parse_quote! {
+            <#color_type as #crate_path::Ready>::ready(::core::unimplemented!("In colorless dev-mode"))
+        }
+    } else {
+        fold_block(
+            block,
+            config,
+            color_type,
+            capture,
+            &mut original_block_plain,
+        )?
     };
 
-    let folded_expr = codegen_config.generate_block(block)?;
     let body_expr = if config.autocomplete {
         wrap_in_resolvable(&crate_path, folded_expr)
     } else {
@@ -67,7 +85,7 @@ pub fn expand_block(
     };
 
     // else it consumed it and there's no need for inert
-    let emit = if let Some(inert) = codegen_config.original_block_plain {
+    let emit = if let Some(inert) = original_block_plain {
         with_original_validation(&crate_path, body_expr, inert, true)
     } else {
         body_expr
@@ -77,6 +95,46 @@ pub fn expand_block(
         brace_token: Default::default(),
         stmts: vec![Stmt::Expr(emit, None)],
     })
+}
+
+#[inline]
+fn fold_block(
+    block: Block,
+    config: &Config,
+    color_type: &Type,
+    capture: bool,
+    original_block_plain: &mut Option<Block>,
+) -> Result<Expr> {
+    let crate_path = &config.crate_path;
+
+    let mut codegen_config = colorless_codegen::Config {
+        max_one_of_arms: 12,
+        color_type: color_type.clone(),
+        crate_path: parse_quote!(#crate_path::__compiler),
+        // inert strips off the resolves... if it has none, then we could safely use it
+        original_block_plain: original_block_plain.take(),
+        declare_borrow_macros: true,
+        no_capture: !capture,
+        // add global no_wrap and ability to opt-out per call
+        no_wrap: match config.wrap_policy {
+            WrapPolicy::NoWrap => true,
+            WrapPolicy::Wrap => false,
+            WrapPolicy::Unspecified => {
+                cfg!(feature = "no-wrap")
+            }
+        },
+        colorless_into_iterator: parse_quote!(#crate_path::iter::IntoColoredIterator::into_iter),
+        desugar_resolve: config.desugar_resolve,
+        extra_macro_allowlist: match &config.allow_macros {
+            AllowMacros::Default => MacroAllowlist::Default,
+            AllowMacros::All => MacroAllowlist::All,
+            AllowMacros::Custom(paths) => MacroAllowlist::Custom(paths.iter().cloned().collect()),
+        },
+    };
+
+    let folded_expr = codegen_config.generate_block(block)?;
+    let _ = std::mem::replace(original_block_plain, codegen_config.original_block_plain);
+    Ok(folded_expr)
 }
 
 impl Parse for ColorInput {

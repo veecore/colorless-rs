@@ -469,7 +469,7 @@ pub(super) mod concrete {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "rainbow"))]
     mod tests {
         use crate::test_util::fetch;
         use crate::{

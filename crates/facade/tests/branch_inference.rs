@@ -301,7 +301,7 @@ fn branch_option_inside_loop(limit: usize) -> usize {
     let mut count = 0;
     let mut total = 0;
 
-    #[colorless::loop_state(limit, mut count, pub mut total)]
+    #[colorless::state(limit, mut count, pub mut total)]
     while count < limit {
         let opt = if count % 2 == 0 {
             let v = ready(count).resolve;
@@ -376,7 +376,7 @@ fn branch_option_early_return_infers_type() {
 fn branch_option_while_let_break(mut items: Vec<i32>) -> Option<i32> {
     let mut result: Option<i32> = None;
 
-    #[colorless::loop_state(mut items, pub mut result)]
+    #[colorless::state(mut items, pub mut result)]
     while let Some(item) = items.pop() {
         let opt = if item > 0 {
             Some(ready(item).resolve)

@@ -122,10 +122,10 @@ macro_rules! declare_adapters {
                 cx: &mut Context<'_>,
             ) -> Poll<<$color$(<$g>)? as Present>::Value<T>> {
                 // SAFETY: `Wrapped` is #[repr(transparent)] around `F`.
-                let f = unsafe { &mut self.get_unchecked_mut().0 };
+                let f = unsafe { &raw mut self.get_unchecked_mut().0 };
 
-                let _unwind_guard = UnwindGuard(&mut *f);
-                let poll = unsafe { Pin::new_unchecked(f).poll(cx) };
+                let _unwind_guard = UnwindGuard(f);
+                let poll = unsafe { Pin::new_unchecked(&mut *f).poll(cx) };
                 core::mem::forget(_unwind_guard);
                 poll
             }

@@ -1,6 +1,6 @@
 //! Parsers for Colorless compiler directives consumed during CPS lowering.
 //!
-//! Directives (`#[colorless::loop_state(...)]`, `pin_local!(...)`, `unpin_local!(...)`)
+//! Directives (`#[colorless::state(...)]`, `pin!(...)`, `unpin!(...)`)
 //! are recognized at this boundary and stripped before emitting CPS IR.
 
 use crate::ir::CpsLocalPinInput;
@@ -14,17 +14,19 @@ use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{Attribute, Ident, Macro, Token, parse_quote};
 
-const PIN_LOCAL: &str = "pin_local";
-const UNPIN_LOCAL: &str = "unpin_local";
-const LOOP_STATE: &str = "loop_state";
-const NO_SHADOW: &str = "inherit_no_shadow";
-const DEFAULT_BREAK_STATE: &str = "default_break_state";
+const PIN_LOCAL: &str = "pin";
+const UNPIN_LOCAL: &str = "unpin";
+const LOOP_STATE: &str = "state";
+const NO_SHADOW: &str = "no_shadow";
+const DEFAULT_BREAK_STATE: &str = "default_state";
 const COLORLESS: &str = "colorless";
 
 pub(crate) enum PinBorrowDirective {
     LocalStart(CpsLocalPinInput),
     LocalEnd(CpsLocalPinInput),
 }
+
+// TODO: HANDLE LOOK-ALIKE
 
 /// Parse a statement macro if it is one of Colorless's local-borrow markers.
 /// Returning `None` delegates the macro to the ordinary allowlist.
@@ -33,7 +35,7 @@ pub(crate) fn parse_borrow_directive(mac: &Macro) -> Result<Option<PinBorrowDire
         let mut input: CpsLocalPinInput = syn::parse2(mac.tokens.clone()).map_err(|e| {
             CpsError::Other(syn::Error::new_spanned(
                 mac,
-                format!("`pin_local!` argument is invalid: {e}"),
+                format!("`pin!` argument is invalid: {e}"),
             ))
         })?;
         // red on macro is more obvious than one ident
@@ -46,7 +48,7 @@ pub(crate) fn parse_borrow_directive(mac: &Macro) -> Result<Option<PinBorrowDire
         let mut input: CpsLocalPinInput = syn::parse2(mac.tokens.clone()).map_err(|e| {
             CpsError::Other(syn::Error::new_spanned(
                 mac,
-                format!("`unpin_local!` argument is invalid: {e}"),
+                format!("`unpin!` argument is invalid: {e}"),
             ))
         })?;
         input.span = mac.span();
@@ -86,7 +88,7 @@ impl Parse for CpsLocalPinInput {
 /// `match`/`loop` lowering path. The attribute is consumed immediately when
 /// that loop is lowered and never reaches the CPS IR.
 pub(crate) fn add_hidden_loop_binding(attrs: &mut Vec<Attribute>, ident: &Ident) {
-    attrs.push(parse_quote!(#[colorless::loop_state(mut #ident)]))
+    attrs.push(parse_quote!(#[colorless::state(mut #ident)]))
 }
 
 /// Consume the single loop-state directive, leaving ordinary attributes for
@@ -103,7 +105,7 @@ pub(crate) fn take_loop_state(attrs: Vec<Attribute>) -> Result<(CpsLoopHint, Vec
             if no_shadow {
                 return Err(CpsError::Other(syn::Error::new_spanned(
                     attr,
-                    "a loop may only be marked `#[inherit_no_shadow]` once.",
+                    "a loop may only be marked `#[no_shadow]` once.",
                 ))
                 .into());
             }
@@ -146,7 +148,6 @@ impl Parse for LoopStateInput {
             let thread = input.parse::<Option<Token![pub]>>()?;
             let referenced = input.parse::<Option<Token![ref]>>()?;
             let mutability = input.parse::<Option<Token![mut]>>()?;
-            // todo: self is not ident... handle that
             let ident = input.parse::<Ident>()?;
             let span = ident.span();
 
@@ -218,7 +219,7 @@ mod tests {
     #[test]
     fn parses_owned_loop_state_without_retaining_attribute_syntax() {
         let loop_: ExprLoop = parse_quote!(
-            #[colorless::loop_state(mut state, index)]
+            #[colorless::state(mut state, index)]
             loop {}
         );
         let (state, attrs) = take_loop_state(loop_.attrs).unwrap();
@@ -234,7 +235,7 @@ mod tests {
     fn hidden_loop_binding_extends_owned_directives() {
         let hidden: Ident = parse_quote!(__iter);
         let mut owned: ExprLoop = parse_quote!(
-            #[colorless::loop_state(mut state)]
+            #[colorless::state(mut state)]
             loop {}
         );
         add_hidden_loop_binding(&mut owned.attrs, &hidden);
@@ -249,10 +250,10 @@ mod tests {
 
     #[test]
     fn parses_borrow_markers_into_typed_nodes() {
-        let Stmt::Macro(start) = parse_quote!(colorless::pin_local!(local);) else {
+        let Stmt::Macro(start) = parse_quote!(colorless::pin!(local);) else {
             panic!("expected statement macro")
         };
-        let Stmt::Macro(end) = parse_quote!(colorless::unpin_local!(local);) else {
+        let Stmt::Macro(end) = parse_quote!(colorless::unpin!(local);) else {
             panic!("expected statement macro")
         };
 
@@ -273,7 +274,7 @@ mod tests {
     #[test]
     fn lowering_attaches_state_to_the_loop_node() {
         let loop_: ExprLoop = parse_quote!(
-            #[colorless::loop_state(mut state, index)]
+            #[colorless::state(mut state, index)]
             loop {}
         );
         let body = CpsBody::from(loop_.step().unwrap());
@@ -294,8 +295,8 @@ mod tests {
     #[test]
     fn duplicate_loop_state_directives_are_accepted() {
         let loop_: ExprLoop = parse_quote!(
-            #[colorless::loop_state(state)]
-            #[colorless::loop_state(other)]
+            #[colorless::state(state)]
+            #[colorless::state(other)]
             loop {}
         );
         let body = loop_.step().unwrap();
@@ -316,7 +317,7 @@ mod tests {
     #[test]
     fn duplicate_state_bindings_are_rejected() {
         let loop_: ExprLoop = parse_quote!(
-            #[colorless::loop_state(mut state, state)]
+            #[colorless::state(mut state, state)]
             loop {}
         );
         let error = loop_.step().unwrap_err();

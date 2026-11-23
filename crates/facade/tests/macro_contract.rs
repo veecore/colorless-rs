@@ -1,15 +1,24 @@
 #![cfg(feature = "relaxed-drop")]
 
 use colorless::{
-    Async, AsyncExt, Color, Colored, Colorize, IdentityExt, color, colorless,
-    test_util::block_on_test,
+    Async, AsyncExt, Color, Colored, IdentityExt, color, colorless, test_util::block_on_test,
 };
 use colorless_core::ready;
 use core::future::poll_fn;
 use core::task::Poll;
+use std::cell::Cell;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+macro_rules! method {
+    () => {
+        #[colorless(C as)]
+        fn bar(&self) {
+            let _r = self.foo().resolve;
+        }
+    };
+}
 
 #[allow(dead_code)]
 #[colorless(C)]
@@ -19,6 +28,8 @@ trait Foo: Debug {
         println!("{self:#?}{}", d);
         Ok(())
     }
+
+    method! {}
 }
 
 #[colorless(color = Async)]
@@ -53,8 +64,8 @@ fn flattened_macro_shape_is_well_typed() {
         let mut total = 0_usize;
         let mut output = Vec::new();
 
-        #[loop_state(pub mut total, pub mut output)]
-        #[default_break_state]
+        #[state(pub mut total, pub mut output)]
+        #[default_state]
         for value in values {
             if value == 0 {
                 return Err(());
@@ -190,11 +201,10 @@ fn inline_macro_is_lazy_until_its_async_computation_is_polled() {
         .await;
     }
 
-    fn suspend_once<T>(value: T) -> impl Colored<Async, Output = T> {
-        <_ as Colorize<Async>>::colorize(async move {
-            yield_once().await;
-            value
-        })
+    #[colorless(color = Async)]
+    async fn suspend_once<T>(value: T) -> T {
+        yield_once().await;
+        value
     }
 
     let calls = Arc::new(AtomicUsize::new(0));
@@ -208,4 +218,101 @@ fn inline_macro_is_lazy_until_its_async_computation_is_polled() {
     assert_eq!(calls.load(Ordering::SeqCst), 0);
     assert_eq!(block_on_test(computation.async_()), 42);
     assert_eq!(calls.load(Ordering::SeqCst), 1);
+}
+
+// ── allow_macros integration tests ───────────────────────────────────────────
+
+/// A macro that appends to a shared log to prove it actually ran.
+macro_rules! push_log {
+    ($log:expr, $msg:literal) => {
+        $log.push_str($msg);
+    };
+}
+
+#[test]
+fn allow_macros_targeted_permits_named_macro_across_resolve() {
+    use colorless_core::ready;
+
+    #[colorless(allow_macros(push_log))]
+    fn logged_add(log: &mut String, a: i32, b: i32) -> i32 {
+        push_log!(log, "before-resolve ");
+        let sum = ready(a + b).resolve;
+        push_log!(log, "after-resolve");
+        sum
+    }
+
+    let mut log = String::new();
+    let result = logged_add(&mut log, 3, 4).sync_();
+    assert_eq!(result, 7);
+    assert_eq!(log, "before-resolve after-resolve");
+}
+
+macro_rules! custom_assert {
+    ($($tt:tt)*) => {
+        assert!($($tt)*);
+    };
+}
+
+macro_rules! call {
+    () => {};
+}
+
+#[test]
+fn allow_macros_all_permits_any_macro_across_resolve() {
+    use colorless_core::ready;
+
+    // Uses the Cell as a cross-resolve observable side effect without &mut.
+    #[colorless(allow_macros(all))]
+    fn counted(counter: &Cell<u32>, value: i32) -> i32 {
+        // macro call before the resolve point
+        custom_assert!(value >= 0, "value must be non-negative");
+        let stepped = ready(value + 1).resolve;
+        // macro call after the resolve point
+        call!();
+        counter.set(counter.get() + 1);
+        stepped
+    }
+
+    let counter = Cell::new(0u32);
+    assert_eq!(counted(&counter, 10).sync_(), 11);
+    assert_eq!(counter.get(), 1);
+}
+
+macro_rules! record_step {
+    ($cell:expr, $val:expr) => {
+        $cell.set($cell.get() + $val);
+    };
+}
+
+#[test]
+fn allow_macros_inside_color_block() {
+    use colorless_core::ready;
+
+    let counter = Cell::new(0u32);
+    let counter_ref = &counter;
+    let computation = color! {
+        #![colorless(color = colorless::Identity, allow_macros(record_step))]
+
+        record_step!(counter_ref, 10);
+        let v = ready(42_i32).resolve;
+        record_step!(counter_ref, 5);
+        v
+    };
+
+    let result = computation.sync_();
+    assert_eq!(result, 42);
+    assert_eq!(counter.get(), 15);
+}
+
+#[test]
+#[should_panic(expected = "not implemented")]
+fn dev_mode() {
+    #[colorless(out_of_my_way)]
+    fn run(left: i32, right: i32) -> i32 {
+        let left = add_one(left).resolve;
+        let right = add_one(right).resolve;
+        left + right
+    }
+
+    run(0, 0).sync_();
 }

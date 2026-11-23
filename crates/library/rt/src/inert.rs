@@ -3,15 +3,12 @@
 use colorless_core::{Colored, Colorize, IntoColored};
 
 #[doc(hidden)]
-pub struct UnreachableResolve<T> {
-    pub resolve: T,
-}
-
-/// Compiler intrinsic marker used by procedural macros during lowering.
-#[doc(hidden)]
 #[inline(always)]
-pub fn resolve_unreachable<C, Co: IntoColored<C>>(_s: Co) -> UnreachableResolve<Co::Output> {
-    unreachable!()
+pub fn colorize<C, D>(d: impl FnOnce() -> D) -> impl Colored<C, Output = D::Output>
+where
+    D: Colorize<C>,
+{
+    d().colorize()
 }
 
 // having _c return O is problematic with opaque types, not is with generic types
@@ -25,13 +22,16 @@ pub fn never_execute_inert<O, C, D: Colored<C, Output = O>>(_c: impl FnOnce() ->
     unsafe { core::hint::unreachable_unchecked() }
 }
 
+/// Compiler intrinsic marker used by procedural macros during lowering.
 #[doc(hidden)]
 #[inline(always)]
-pub fn colorize<C, D>(d: impl FnOnce() -> D) -> impl Colored<C, Output = D::Output>
-where
-    D: Colorize<C>,
-{
-    d().colorize()
+pub fn resolve_unreachable<C, Co: IntoColored<C>>(_s: Co) -> UnreachableResolve<Co::Output> {
+    unreachable!()
+}
+
+#[doc(hidden)]
+pub struct UnreachableResolve<T> {
+    pub resolve: T,
 }
 
 #[macro_export]

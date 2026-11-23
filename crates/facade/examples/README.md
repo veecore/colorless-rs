@@ -23,7 +23,7 @@ cargo run -p colorless --example retry_with_fallback --features relaxed-drop
 
 ### 1. [`stream_parser.rs`](stream_parser.rs) ⭐
 * **What it demonstrates**: A streaming line parser where both input chunks (`source`) and parsed records (`sink`) are callbacks driven by Colorless (`ColoredFnMut`).
-* **Key takeaway**: Shows a **true source of color**! The parser is written once; in synchronous mode it is passed direct closures (`from_fn`), while in asynchronous mode it is passed async closures (`from_async_fn`) awaiting I/O. Demonstrates `pin_local!`, `borrow_mut!`, and `reborrow!` across loop suspension points.
+* **Key takeaway**: Shows a **true source of color**! The parser is written once; in synchronous mode it is passed direct closures (`from_fn`), while in asynchronous mode it is passed async closures (`from_async_fn`) awaiting I/O. Demonstrates `pin!`, `borrow!`, and `reborrow!` across loop suspension points.
 
 ### 2. [`simple_pipeline.rs`](simple_pipeline.rs)
 * **What it demonstrates**: Defining `#[colorless]` functions and calling them with `.sync_()` (direct synchronous execution) and `.async_()` (unboxed future).
