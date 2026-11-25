@@ -230,7 +230,7 @@ unsafe impl<C, T> ColoredInternal<C> for PlaceHolder<C, T> {
     }
 
     unsafe fn finalize_ready(self: Pin<&mut Self>) {
-        todo!()
+        match self.void {}
     }
 
     fn compute_sync(self) -> <C as Present>::Value<Self::OutputInternal>

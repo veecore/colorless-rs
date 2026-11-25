@@ -38,8 +38,9 @@ pub struct UnreachableResolve<T> {
 macro_rules! keep_alive {
     ($($ident:ident),*) => {
         $(
+            // wrapping ensures it dies here
             #[allow(unused)]
-            let $ident = $ident;
+            {let $ident = $ident;}
         )*
     };
 }

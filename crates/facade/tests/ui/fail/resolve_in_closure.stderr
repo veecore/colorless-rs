@@ -1,0 +1,5 @@
+error[E0609]: no field `resolve` on type `impl Colored<_, Output = {integer}>`
+ --> tests/ui/fail/resolve_in_closure.rs:7:27
+  |
+7 |     let f = || { ready(1).resolve };
+  |                           ^^^^^^^ unknown field

@@ -1,0 +1,11 @@
+error: cannot find macro `unpin` in this scope
+ --> tests/ui/fail/unpin_in_closure.rs:7:9
+  |
+7 |         unpin!(a);
+  |         ^^^^^
+
+error[E0601]: `main` function not found in crate `$CRATE`
+  --> tests/ui/fail/unpin_in_closure.rs:10:2
+   |
+10 | }
+   |  ^ consider adding a `main` function to `$DIR/tests/ui/fail/unpin_in_closure.rs`

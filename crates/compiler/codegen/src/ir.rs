@@ -69,29 +69,35 @@ impl Folded {
             YieldPoint::Colored => folded.stmts.into(),
         };
 
-        if ctx.config.no_wrap {
+        let result = if ctx.config.no_wrap {
             match folded.output.yield_point {
                 YieldPoint::Colored => {
                     // already lowered - has no native control-flows
-                    Ok(block(body))
+                    block(body)
                 }
                 YieldPoint::Plain => {
                     let func = thunk(!ctx.config.no_capture, body);
 
-                    Ok(ctx.call("Ready", "ready_fn", [func]))
+                    ctx.call("Ready", "ready_fn", [func])
                 }
             }
         } else {
             let body = thunk(!ctx.config.no_capture, body);
 
-            Ok(ctx.call(
+            ctx.call(
                 "Wrap",
                 match folded.output.yield_point {
                     YieldPoint::Colored => "wrap_flatten",
                     YieldPoint::Plain => "wrap",
                 },
                 [body],
-            ))
+            )
+        };
+
+        if ctx.config.erase {
+            Ok(ctx.call("Erase", "erase", [result]))
+        } else {
+            Ok(result)
         }
     }
 }

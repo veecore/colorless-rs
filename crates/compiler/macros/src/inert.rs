@@ -6,15 +6,30 @@ use syn::{
     parse_quote,
 };
 
+pub struct Inert {
+    pub block: Block,
+    // this is to prevent further occurrence of the bug
+    pub resolve_encountered: bool,
+}
+
 /// Constructs an inert copy of the input so that rustc enforces
 /// native borrow checking, lifetime validation, and let-else divergence checks before CPS lowering.
-pub fn generate_inert_body(mut block: Block, color_type: &Type, crate_path: &Path) -> Block {
+pub fn generate_inert_body(mut block: Block, color_type: &Type, crate_path: &Path) -> Inert {
     struct ReplaceResolve<'a> {
         color_type: &'a Type,
         crate_path: &'a Path,
         iter_counter: usize,
+        resolve_encountered: bool,
     }
 
+    // fixme: do not go into opaques
+    // #[colorless]
+    // fn ex16() {
+    //     let f = || { ready(1).resolve };
+    //     f();
+    // }
+    // this panics at runtime because codegen found no resolve, used what we generated here
+    // believing it's plain, but we already rewrote ready(1) to panic
     impl VisitMut for ReplaceResolve<'_> {
         fn visit_expr_mut(&mut self, expr: &mut Expr) {
             let attrs = match expr {
@@ -93,6 +108,8 @@ pub fn generate_inert_body(mut block: Block, color_type: &Type, crate_path: &Pat
                 return;
             }
 
+            self.resolve_encountered = true;
+
             let crate_path = self.crate_path;
             let color_type = self.color_type;
 
@@ -114,24 +131,33 @@ pub fn generate_inert_body(mut block: Block, color_type: &Type, crate_path: &Pat
         }
     }
 
-    visit_block_mut(
-        &mut ReplaceResolve {
-            color_type,
-            crate_path,
-            iter_counter: 0,
-        },
-        &mut block,
-    );
+    let mut replace_resolve = ReplaceResolve {
+        color_type,
+        crate_path,
+        iter_counter: 0,
+        resolve_encountered: false,
+    };
+
+    visit_block_mut(&mut replace_resolve, &mut block);
     let mut stmts = Vec::with_capacity(block.stmts.len() + 1);
-    stmts.push(parse_quote! {
-        #[allow(unused_imports)]
-        use #crate_path::__compiler::{
-            __borrow as borrow, __rb as rb, __unborrow as unborrow, __pin as pin, __unpin as unpin, keep_alive,
-            __slot as slot, __take_slot as take_slot, __rbv as rbv
-        };
-    });
+    // If no resolve, remove all imports as they can panic if used... stop this once we
+    // stop going into opaques
+    if replace_resolve.resolve_encountered {
+        stmts.push(parse_quote! {
+            #[allow(unused_imports)]
+            use #crate_path::__compiler::{
+                __borrow as borrow, __rb as rb, __unborrow as unborrow, __pin as pin, __unpin as unpin, keep_alive,
+                __slot as slot, __take_slot as take_slot, __rbv as rbv
+            };
+        });
+    }
+
     stmts.append(&mut block.stmts);
-    Block { stmts, ..block }
+    let block = Block { stmts, ..block };
+    Inert {
+        block,
+        resolve_encountered: replace_resolve.resolve_encountered,
+    }
 }
 
 pub fn with_original_validation(

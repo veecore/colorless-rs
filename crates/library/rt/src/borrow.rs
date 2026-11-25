@@ -117,61 +117,61 @@ impl<T> ErasedBorrow<MaybeUnpinned<'_, T>> {
         unsafe { self.0.as_mut().value.take().unwrap_unchecked() }
     }
 }
-
-#[doc = "This trait is implemented for tuples up to six items long."]
-pub trait UnpackPinned {
-    type Tuple;
-    unsafe fn unpack(self) -> Self::Tuple;
-}
-
-impl<T> UnpackPinned for MaybeUnpinned<'_, T> {
-    type Tuple = Self;
-
-    #[inline(always)]
-    unsafe fn unpack(self) -> Self::Tuple {
-        self
-    }
-}
-
-macro_rules! impl_unpack_pinned {
-    {
-        $( $($l:lifetime $T:ident)* );*
-    } => {
-        $(
-            impl_unpack_pinned_base!{
-                $($l $T)*
-            }
-        )*
-    }
-}
-
-// TODO: AUDIT
-macro_rules! impl_unpack_pinned_base {
-    ($($l:lifetime $T:ident)*) => {
-        impl<$($l,)* $($T),*> UnpackPinned for ErasedBorrow<($(MaybeUnpinned<$l, $T>,)*)> {
-            type Tuple = ($(ErasedBorrow<MaybeUnpinned<$l, $T>>,)*);
-
-            #[inline(always)]
-            unsafe fn unpack(mut self) -> Self::Tuple {
-                #[allow(non_snake_case)]
-                let ($($T,)*) = unsafe { self.0.as_mut() };
-                ($(
-                    ErasedBorrow(NonNull::from_mut($T), PhantomData),
-                )*)
-            }
-        }
-    };
-}
-
-impl_unpack_pinned! {
-    't0 T0;
-    't0 T0 't1 T1;
-    't0 T0 't1 T1 't2 T2;
-    't0 T0 't1 T1 't2 T2 't3 T3;
-    't0 T0 't1 T1 't2 T2 't3 T3 't4 T4;
-    't0 T0 't1 T1 't2 T2 't3 T3 't4 T4 't5 T5;
-    't0 T0 't1 T1 't2 T2 't3 T3 't4 T4 't5 T5 't6 T6;
-}
+//
+// #[doc = "This trait is implemented for tuples up to six items long."]
+// pub trait UnpackPinned {
+//     type Tuple;
+//     unsafe fn unpack(self) -> Self::Tuple;
+// }
+//
+// impl<T> UnpackPinned for MaybeUnpinned<'_, T> {
+//     type Tuple = Self;
+//
+//     #[inline(always)]
+//     unsafe fn unpack(self) -> Self::Tuple {
+//         self
+//     }
+// }
+//
+// macro_rules! impl_unpack_pinned {
+//     {
+//         $( $($l:lifetime $T:ident)* );*
+//     } => {
+//         $(
+//             impl_unpack_pinned_base!{
+//                 $($l $T)*
+//             }
+//         )*
+//     }
+// }
+//
+// // TODO: AUDIT
+// macro_rules! impl_unpack_pinned_base {
+//     ($($l:lifetime $T:ident)*) => {
+//         impl<$($l,)* $($T),*> UnpackPinned for ErasedBorrow<($(MaybeUnpinned<$l, $T>,)*)> {
+//             type Tuple = ($(ErasedBorrow<MaybeUnpinned<$l, $T>>,)*);
+//
+//             #[inline(always)]
+//             unsafe fn unpack(mut self) -> Self::Tuple {
+//                 #[allow(non_snake_case)]
+//                 let ($($T,)*) = unsafe { self.0.as_mut() };
+//                 ($(
+//                     ErasedBorrow(NonNull::from_mut($T), PhantomData),
+//                 )*)
+//             }
+//         }
+//     };
+// }
+//
+// impl_unpack_pinned! {
+//     't0 T0;
+//     't0 T0 't1 T1;
+//     't0 T0 't1 T1 't2 T2;
+//     't0 T0 't1 T1 't2 T2 't3 T3;
+//     't0 T0 't1 T1 't2 T2 't3 T3 't4 T4;
+//     't0 T0 't1 T1 't2 T2 't3 T3 't4 T4 't5 T5;
+//     't0 T0 't1 T1 't2 T2 't3 T3 't4 T4 't5 T5 't6 T6;
+// }
 
 impl<'a, T: ?Sized> LocalCell<'a, T> {
     #[inline(always)]

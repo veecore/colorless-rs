@@ -1,0 +1,5 @@
+error[E0609]: no field `resolve` on type `impl Colored<_, Output = i32>`
+  --> tests/ui/fail/guards_with_resolve.rs:10:23
+   |
+10 |         n if ready(n).resolve > 0 => println!("Pos"),
+   |                       ^^^^^^^ unknown field

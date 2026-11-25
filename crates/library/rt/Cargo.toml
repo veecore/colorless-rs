@@ -19,6 +19,5 @@ cps-signal = { workspace = true }
 cps-try = { workspace = true }
 
 [features]
-default = ["std"]
 alloc = ["colorless-core/alloc"]
 std = ["alloc", "colorless-core/std"]

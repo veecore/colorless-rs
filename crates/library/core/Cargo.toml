@@ -18,7 +18,6 @@ criterion = { workspace = true, features = ["async_tokio"] }
 tokio = { workspace = true }
 
 [features]
-default = ["alloc"]
 alloc = []
 std = ["alloc"]
 rainbow = []

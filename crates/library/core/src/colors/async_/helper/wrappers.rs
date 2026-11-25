@@ -631,8 +631,20 @@ macro_rules! declare_wrappers {
             }
 
             #[inline(always)]
-            unsafe fn finalize_ready(self: Pin<&mut Self>) {
-                unsafe {Pin::map_unchecked_mut(self, |this| this.0.deref_mut()).finalize_ready()}
+            unsafe fn finalize_ready(mut self: Pin<&mut Self>) {
+                let this = unsafe { self.as_mut().get_unchecked_mut() };
+                unsafe {Pin::new_unchecked(this.0.deref_mut()).finalize_ready()};
+                // deallocate the box.... we can't call drop
+                // todo: Do we have to drop the box if finalize_ready panics?
+
+                let ptr = ::alloc::boxed::Box::as_mut_ptr(&mut this.0);
+
+                unsafe {
+                    let layout = ::alloc::alloc::Layout::for_value_raw(ptr);
+                    if layout.size() != 0 {
+                        ::alloc::alloc::dealloc(ptr.cast(), layout);
+                    }
+                }
             }
         }
 

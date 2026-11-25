@@ -27,6 +27,7 @@ pub struct Config {
     pub no_wrap: bool,
     pub colorless_into_iterator: Path,
     pub desugar_resolve: bool,
+    pub erase: bool,
     /// Extra macros to allow beyond the built-in allowlist.
     /// `None` means keep the built-in default; `All` means allow everything;
     /// `Custom` means augment the built-in list with explicit paths.
@@ -47,6 +48,7 @@ impl Default for Config {
                 ::colorless::iter::IntoColoredIterator::into_iter
             ),
             desugar_resolve: true,
+            erase: false,
             extra_macro_allowlist: MacroAllowlist::Default,
         }
     }

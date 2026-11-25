@@ -10,11 +10,22 @@ pub fn add_generic(
     crate_path: &syn::Path,
     color_generic: &Ident,
     default: bool,
+    erase: bool,
 ) {
-    let parameter: TypeParam = if default {
-        parse_quote!(#color_generic: #crate_path::Color = ::colorless::Identity)
+    let color = if erase {
+        // fix, add `'__erase` bound by that
+        quote::quote! {
+            #crate_path::Color + #crate_path::Erase + 'static
+        }
     } else {
-        parse_quote!(#color_generic: #crate_path::Color)
+        quote::quote! {
+            #crate_path::Color
+        }
+    };
+    let parameter: TypeParam = if default {
+        parse_quote!(#color_generic: #color = ::colorless::Identity)
+    } else {
+        parse_quote!(#color_generic: #color)
     };
     generics.params.push(GenericParam::Type(parameter));
 }

@@ -575,6 +575,7 @@ fn disjoint_borrow() {
 
     #[colorless]
     fn run(s: &mut Struct) {
+        ready(()).resolve;
         borrow!(s);
         push(&mut rb!(s).a, &mut rb!(s).b);
     }

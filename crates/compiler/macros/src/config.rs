@@ -24,6 +24,7 @@ pub struct Config {
     pub color: Color,
     pub crate_path: Path,
     pub wrap_policy: WrapPolicy,
+    pub erase: bool,
     /// Macro invocations to permit beyond the built-in allowlist.
     pub allow_macros: AllowMacros,
     pub dev_mode: bool,
@@ -73,6 +74,7 @@ impl Default for Config {
             color: Color::Auto,
             crate_path,
             wrap_policy: WrapPolicy::Unspecified,
+            erase: false,
             allow_macros: AllowMacros::Default,
             dev_mode: false,
         }
@@ -151,6 +153,13 @@ impl Parse for Config {
 
                         config.wrap_policy = WrapPolicy::Wrap;
                     }
+                    "erase" => {
+                        if config.erase {
+                            return Err(syn::Error::new(input.span(), "redundant `erase`"));
+                        }
+                        let _: Ident = input.parse()?;
+                        config.erase = true;
+                    }
                     "out_of_my_way" | "dev_mode" | "arrgh" => {
                         if config.dev_mode {
                             return Err(syn::Error::new(input.span(), "redundant `dev-mode`"));
@@ -225,13 +234,13 @@ impl Config {
     pub fn or_add_generic(&mut self, generics: &mut Generics, default: bool) {
         match self.color {
             Color::Generic(ref g) => {
-                add_generic(generics, &self.crate_path, g, default);
+                add_generic(generics, &self.crate_path, g, default, self.erase);
             }
             Color::Specific(ref _s) => {}
             Color::DeclaredGeneric(ref _dg) => {}
             Color::Auto => {
                 let f = fresh_color_ident(generics);
-                add_generic(generics, &self.crate_path, &f, default);
+                add_generic(generics, &self.crate_path, &f, default, self.erase);
                 self.color = Color::DeclaredGeneric(f);
             }
         }

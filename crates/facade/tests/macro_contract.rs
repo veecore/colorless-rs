@@ -4,6 +4,7 @@ use colorless::{
     Async, AsyncExt, Color, Colored, IdentityExt, color, colorless, test_util::block_on_test,
 };
 use colorless_core::ready;
+use colorless_core::test_util::block_on_local_test;
 use core::future::poll_fn;
 use core::task::Poll;
 use std::cell::Cell;
@@ -315,4 +316,415 @@ fn dev_mode() {
     }
 
     run(0, 0).sync_();
+}
+
+// some of the hallmark tests from archive ( kinda weak now )
+
+#[test]
+fn archived() {
+    #[colorless]
+    fn ex9_c() -> i32 {
+        let mut x = 0;
+        pin!(x);
+        let y = rb!(x);
+        let mut i = 0;
+
+        borrow!(y);
+        slot!(y);
+        #[state(mut i, pub mut y)]
+        #[default_state]
+        while i < 10 {
+            *rb!(y) += ready(i).resolve;
+            i += 1;
+        }
+        take_slot!(y);
+        unborrow!(y);
+        *y
+    }
+
+    // ---------------------------------------------------------
+    // Example 1: Simple linear sequence
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex1() -> i32 {
+        let a = ready(1).resolve;
+        let b = ready(a).resolve;
+        a + b
+    }
+
+    // ---------------------------------------------------------
+    // Example 2: Branching (if / else)
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex2(flag: bool) -> i32 {
+        if flag {
+            ready(1).resolve
+        } else {
+            ready(2).resolve
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Example 3: Branching with unequal arms (Pure vs Colored)
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex3(flag: bool) -> i32 {
+        if flag { ready(1).resolve } else { 100 }
+    }
+
+    // ---------------------------------------------------------
+    // Example 4: Simple loop without state
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex4() {
+        loop {
+            ready(1).resolve;
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Example 5: Loop with outer state mutation
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex5() -> i32 {
+        let mut sum = 0;
+        let mut i = 0;
+        #[state(pub mut sum, mut i)]
+        while i < 10 {
+            sum += ready(i).resolve;
+            i += 1;
+        }
+        sum
+    }
+
+    assert_eq!(ex5().sync_(), (9 * (9 + 1)) / 2);
+
+    // ---------------------------------------------------------
+    // Example 6: Loop with early break
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex6() -> i32 {
+        let mut i = 0;
+        #[state(mut i)]
+        loop {
+            let x = ready(i).resolve;
+            if x > 50 {
+                break x;
+            }
+            i += 1;
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Example 7: Loop with early continue
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex7() -> i32 {
+        let mut sum = 0;
+        let mut i = 0;
+        #[state(mut i, pub mut sum)]
+        while i < 10 {
+            i += 1;
+            if i % 2 == 0 {
+                continue;
+            }
+            sum += ready(i).resolve;
+        }
+        sum
+    }
+
+    // ---------------------------------------------------------
+    // Example 8: Mutating an external reference (&mut T)
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex8(x: &mut i32) -> i32 {
+        let mut i = 0;
+        borrow!(x);
+        slot!(x);
+        #[state(mut i, pub mut x)]
+        #[default_state]
+        while i < 10 {
+            *rb!(x) += ready(i).resolve;
+            i += 1;
+        }
+        take_slot!(x);
+        unborrow!(x);
+        *x
+    }
+
+    // ------------------------------------------------
+    // Example 9: Self-Referential Locals across Yields
+    // ------------------------------------------------
+    #[colorless]
+    fn ex9() -> i32 {
+        let mut x = 0;
+        pin!(x);
+        let y = rb!(x);
+        let a = ready(1).resolve;
+        *y += a;
+        *y
+    }
+
+    // ---------------------------------------------------------
+    // Example 10: match Statement
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex10(x: i32) -> i32 {
+        match x {
+            0 => ready(0).resolve,
+            1 => 100,
+            _ => ready(2).resolve,
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Example 11: Nested Loops
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex11() -> i32 {
+        let mut sum = 0;
+        #[state(pub mut sum)]
+        for i in 0..5 {
+            #[state(pub mut sum, i)]
+            for j in 0..5 {
+                sum += ready(i + j).resolve;
+            }
+        }
+        sum
+    }
+
+    // ---------------------------------------------------------
+    // Example 12: while let Loop
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex12(mut opt: Option<i32>) {
+        #[state(mut opt)]
+        while let Some(x) = opt {
+            opt = if x < 10 { Some(ready(x).resolve) } else { None };
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Example 13: for Loop
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex13(vec: Vec<i32>) -> i32 {
+        let mut sum = 0;
+        #[state(pub mut sum)]
+        for x in vec {
+            sum += ready(x).resolve;
+        }
+        sum
+    }
+
+    // ------------------------
+    // Example 14: Early return
+    // ------------------------
+    #[colorless]
+    fn ex14() -> i32 {
+        let x = ready(1).resolve;
+        if x == 0 {
+            return 0;
+        }
+        ready(2).resolve
+    }
+
+    // ---------------------------
+    // Example 15: The ? operator
+    // ---------------------------
+    #[colorless]
+    fn ex15() -> Result<i32, String> {
+        // Assuming fetch_res returns impl Colored<C, Output = Result<i32, String>>
+        let x = ready(Ok::<_, String>(1)).resolve?;
+        Ok(x)
+    }
+
+    // ---------------------------------------------------------
+    // Example 16: Closures containing
+    // ---------------------------------------------------------
+    // Modified for another test
+    #[colorless(Z)]
+    fn ex16() {
+        let f = || {
+            color! {
+                #![colorless(color = Z)]
+
+                ready(1).resolve
+            }
+        };
+        f().resolve;
+    }
+
+    #[colorless]
+    fn ex17() -> i32 {
+        let x = 1;
+        let x = ready(x + 1).resolve;
+        x
+    }
+
+    assert_eq!(ex17().sync_(), 2);
+
+    // ---------------------------------------------------------
+    // Example 19: Labeled loop breaks
+    // ---------------------------------------------------------
+    #[cfg(any())]
+    // fixme: general loop issue... this should work though.
+    // if we roll into a while loop with iter_0 as pub, it does
+    #[colorless]
+    fn ex19() -> i32 {
+        ready(()).resolve;
+        let mut sum = 0;
+        'outer: for i in 0..5 {
+            #[no_shadow]
+            for j in 0..5 {
+                if j == 2 {
+                    break 'outer;
+                }
+            }
+        }
+        sum
+    }
+
+    // ----------------------
+    // Example 20: Drop Order
+    // ----------------------
+    use std::sync::Mutex;
+    #[colorless]
+    fn ex20(m: &Mutex<i32>) {
+        let _guard = m.lock().unwrap();
+        ready(1).resolve;
+        keep_alive!(_guard);
+    }
+
+    // ----------------------
+    // Example 21: Send-ness
+    // ----------------------
+    #[colorless]
+    fn ex21() -> i32 {
+        let rc = std::rc::Rc::new(10); // !Send
+        let x = *rc;
+        // `rc` is dead here in standard async rust, so this future SHOULD be `Send`.
+        let a = ready(x).resolve;
+        a
+    }
+
+    fn assert_send<T: Send>(_t: &T) {}
+
+    assert_send(&ex21().async_());
+
+    // ---------------------------------------------------------
+    // Example 23: Pattern Matching with `ref` bindings across yields
+    // ---------------------------------------------------------
+    #[allow(dead_code)]
+    pub enum MyEnum {
+        Data(String),
+        None,
+    }
+
+    // fixme
+    #[colorless]
+    fn ex23(mut e: MyEnum) {
+        pin!(e); // this is inconvenient when other arms consume
+        match rb!(e) {
+            // pin should be around here
+            MyEnum::Data(/*ref */ s) => {
+                ready(1).resolve;
+                println!("{}", s);
+            }
+            _ => {}
+        }
+    }
+
+    #[colorless]
+    fn ex23_take_2(e: MyEnum) {
+        match e {
+            MyEnum::Data(mut s) => {
+                pin!(s);
+                ready(1).resolve;
+                println!("{}", rb!(s));
+            }
+            _ => {}
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Example 40: Stack Bloat (Closure Environment Size)
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex40() {
+        let large = [0u8; 10_000];
+        ready(1).resolve;
+        println!("{}", large[0]);
+        let large2 = [0u8; 10_000];
+        ready(2).resolve;
+        println!("{}", large2[0]);
+    }
+
+    let fut = ex40().async_();
+    // large is carried on
+    assert_eq!(size_of_val(&fut), 10_000 + size_of::<usize>());
+
+    // ---------------------------------------------------------
+    // Example 50: `break` to multiple outer labels
+    // ---------------------------------------------------------
+    #[colorless]
+    fn ex50(mut v: bool) {
+        #[state(pub mut v)]
+        'outer: loop {
+            #[no_shadow]
+            'inner: loop {
+                v = ready(v).resolve;
+                if v == true {
+                    break 'inner;
+                }
+                if v == false {
+                    break 'outer;
+                }
+            }
+            assert_eq!(v, true);
+            return;
+        }
+        assert_eq!(v, false);
+    }
+
+    for t in [true, false] {
+        ex50(t).sync_();
+        block_on_test(ex50(t).async_());
+    }
+}
+
+#[test]
+fn match_pat_influence() {
+    // we don't target pat
+    #[allow(unreachable_code, unused_variables)]
+    #[colorless]
+    fn match_pat_influence() -> Result<(), ()> {
+        ready(()).resolve;
+        let x = match 1 {
+            _ if ready(Err::<i32, _>(())).sync_()? > 0 => unreachable!(),
+            _ => unreachable!(),
+        };
+        unreachable!();
+        x
+    }
+
+    match_pat_influence().sync_().unwrap_err();
+}
+
+#[test]
+fn recursion() {
+    // ---------------------------------------------------------
+    // Example 22: Recursive Functions (Infinite Types)
+    // ---------------------------------------------------------
+    #[colorless(erase)]
+    fn ex22(n: i32) -> i32 {
+        if n == 0 {
+            return 0;
+        }
+        n + ex22(n - 1).resolve
+    }
+
+    assert_eq!(ex22(5).sync_(), (5 * (5 + 1)) / 2);
+    // dyn throws the send out the window
+    assert_eq!(block_on_local_test(ex22(5).async_()), (5 * (5 + 1)) / 2);
 }

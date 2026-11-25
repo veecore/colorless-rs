@@ -55,11 +55,9 @@ pub fn expand_block(
 
     let crate_path = &config.crate_path;
 
-    let mut original_block_plain = Some(generate_inert_body(
-        block.clone(),
-        color_type,
-        &config.crate_path,
-    ));
+    let inert = generate_inert_body(block.clone(), color_type, &config.crate_path);
+
+    let mut inert_block = Some(inert.block);
 
     let folded_expr = if config.dev_mode || cfg!(feature = "out-of-my-way") {
         std::hint::cold_path();
@@ -69,24 +67,26 @@ pub fn expand_block(
             <#color_type as #crate_path::Ready>::ready(::core::unimplemented!("In colorless dev-mode"))
         }
     } else {
-        fold_block(
-            block,
-            config,
-            color_type,
-            capture,
-            &mut original_block_plain,
-        )?
+        // probably not plain - our version goes into places it shouldn't so this might be
+        // false negative... but we accept it... verify that this is not dangerous
+        // todo:                                    👆
+
+        if inert.resolve_encountered {
+            fold_block(block, config, color_type, capture, &mut None)
+        } else {
+            fold_block(block, config, color_type, capture, &mut inert_block)
+        }?
     };
 
     let body_expr = if config.autocomplete {
-        wrap_in_resolvable(&crate_path, folded_expr)
+        wrap_in_resolvable(crate_path, folded_expr)
     } else {
         folded_expr
     };
 
     // else it consumed it and there's no need for inert
-    let emit = if let Some(inert) = original_block_plain {
-        with_original_validation(&crate_path, body_expr, inert, true)
+    let emit = if let Some(inert) = inert_block {
+        with_original_validation(crate_path, body_expr, inert, true)
     } else {
         body_expr
     };
@@ -125,6 +125,7 @@ fn fold_block(
         },
         colorless_into_iterator: parse_quote!(#crate_path::iter::IntoColoredIterator::into_iter),
         desugar_resolve: config.desugar_resolve,
+        erase: config.erase,
         extra_macro_allowlist: match &config.allow_macros {
             AllowMacros::Default => MacroAllowlist::Default,
             AllowMacros::All => MacroAllowlist::All,
