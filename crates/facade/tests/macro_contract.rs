@@ -7,6 +7,7 @@ use colorless_core::ready;
 use colorless_core::test_util::block_on_local_test;
 use core::future::poll_fn;
 use core::task::Poll;
+use std::alloc::Layout;
 use std::cell::Cell;
 use std::fmt::Debug;
 use std::sync::Arc;

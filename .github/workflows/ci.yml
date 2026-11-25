@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.95
+      - uses: dtolnay/rust-toolchain@1.99
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.95
+      - uses: dtolnay/rust-toolchain@1.99
         with:
           components: clippy
       - run: cargo clippy --workspace --features="relaxed-drop" -- -D warnings
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.95
+      - uses: dtolnay/rust-toolchain@1.99
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 
   # ── 4. Debug test suite ──────────────────────────────────────────────────────
@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.95
+      - uses: dtolnay/rust-toolchain@1.99
       # Build gate: reject compilation errors in all test targets before running.
       - run: cargo test --workspace --no-run --features="relaxed-drop"
       - run: cargo test --workspace --features="relaxed-drop"
@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.95
+      - uses: dtolnay/rust-toolchain@1.99
       - run: cargo test --workspace --release --features="relaxed-drop"
       # Explicit high-value targets — if the workspace sweep above is split or
       # filtered in future, these pinned invocations remain as a hard floor.
@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.95
+      - uses: dtolnay/rust-toolchain@1.99
         with:
           targets: thumbv7m-none-eabi
       - run: cargo check -p colorless-core --target thumbv7m-none-eabi
