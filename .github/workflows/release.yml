@@ -6,6 +6,21 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
+      package:
+        description: 'Crate to publish (or "all" to publish all unpublished workspace crates)'
+        type: choice
+        default: 'all'
+        options:
+          - all
+          - cps-signal
+          - cps-try
+          - colorless-core
+          - colorless-lower
+          - colorless-rt
+          - colorless-codegen
+          - colorless-macros
+          - colorless-std
+          - colorless
       dry_run:
         description: 'Dry run (do not publish to crates.io or create release)'
         type: boolean
@@ -26,17 +41,21 @@ jobs:
       - name: Run workspace tests
         run: cargo test --workspace --features="relaxed-drop"
 
-  # ── 2. Create GitHub Release ───────────────────────────────────────────────
-  github-release:
-    name: Create GitHub Release
+  # ── 2. Publish to crates.io & GitHub Release ───────────────────────────────
+  publish:
+    name: Publish to Crates.io
     needs: verify
-    if: ${{ !inputs.dry_run && startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: softprops/action-gh-release@v2
+
+      - uses: dtolnay/rust-toolchain@1.99
+
+      - name: Create GitHub Release
+        if: ${{ !inputs.dry_run && startsWith(github.ref, 'refs/tags/v') }}
+        uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           draft: false
@@ -44,107 +63,59 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ── 3. Publish to crates.io ────────────────────────────────────────────────
-  #
-  # Uses `cargo publish` with per-crate --manifest-path to:
-  #   • publish in dependency order
-  #   • skip crates that are already on crates.io (grep for "already uploaded")
-  #   • wait between publishes so the index has time to propagate
-  #   • respect the 5-new-crates-per-10-min rate limit with a longer sleep
-  #
-  publish:
-    name: Publish to Crates.io
-    needs: verify
-    runs-on: ubuntu-latest
-    env:
-      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      # Set to "true" via workflow_dispatch to skip actual publishing
-      DRY_RUN: ${{ inputs.dry_run }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.99
-
-      - name: Check token is set
-        run: |
-          if [ -z "${CARGO_REGISTRY_TOKEN}" ]; then
-            echo "::error::CARGO_REGISTRY_TOKEN is not set. Add it at:"
-            echo "  Repo → Settings → Secrets and variables → Actions → Repository secrets"
-            exit 1
-          fi
-
-      - name: Publish crates in dependency order
+      - name: Publish to Crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           set -euo pipefail
 
-          # Ordered list: each entry must be published before the ones below it
-          CRATES=(
-            "crates/library/signal"
-            "crates/library/try"
-            "crates/library/core"
-            "crates/compiler/lower"
-            "crates/library/rt"
-            "crates/compiler/codegen"
-            "crates/compiler/macros"
-            "crates/library/std"
-            "crates/facade"
+          if [ -z "${CARGO_REGISTRY_TOKEN:-}" ]; then
+            echo "::error::CARGO_REGISTRY_TOKEN is not set or empty in GitHub Secrets!"
+            echo "Please check: Repo Settings -> Secrets and variables -> Actions -> Repository secrets -> CARGO_REGISTRY_TOKEN"
+            exit 1
+          fi
+
+          DRY_RUN="${{ inputs.dry_run }}"
+          DRY_RUN_FLAG=""
+          if [ "$DRY_RUN" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+            echo "Running in DRY RUN mode"
+          fi
+
+          PACKAGE="${{ inputs.package || 'all' }}"
+
+          if [ "$PACKAGE" != "all" ]; then
+            echo "Publishing single crate: $PACKAGE"
+            cargo publish -p "$PACKAGE" $DRY_RUN_FLAG
+            exit 0
+          fi
+
+          # Auto-exclude crates whose current version is already on crates.io
+          EXCLUDES=()
+          PUBLISHABLE_COUNT=0
+          EXCLUDED_COUNT=0
+
+          while IFS=' ' read -r name version; do
+            PUBLISHABLE_COUNT=$((PUBLISHABLE_COUNT + 1))
+            if curl -sf -A "colorless-rs-ci" "https://crates.io/api/v1/crates/$name/$version" -o /dev/null; then
+              echo "Skipping $name v$version (already on crates.io)"
+              EXCLUDES+=(--exclude "$name")
+              EXCLUDED_COUNT=$((EXCLUDED_COUNT + 1))
+            else
+              echo "Queued $name v$version"
+            fi
+          done < <(
+            cargo metadata --no-deps --format-version 1 | python3 -c "
+          import sys, json
+          for p in json.load(sys.stdin)['packages']:
+              if p['publish'] is None or len(p['publish']) > 0:
+                  print(p['name'], p['version'])
+          "
           )
 
-          publish_one() {
-            local manifest="$1/Cargo.toml"
-            local name
-            name=$(cargo read-manifest --manifest-path "$manifest" | python3 -c "import sys,json; print(json.load(sys.stdin)['name'])")
-            local version
-            version=$(cargo read-manifest --manifest-path "$manifest" | python3 -c "import sys,json; print(json.load(sys.stdin)['version'])")
+          if [ "$EXCLUDED_COUNT" -eq "$PUBLISHABLE_COUNT" ]; then
+            echo "All $PUBLISHABLE_COUNT workspace crates are already published."
+            exit 0
+          fi
 
-            echo ""
-            echo "──────────────────────────────────────────"
-            echo "  Crate : $name v$version"
-            echo "──────────────────────────────────────────"
-
-            # Check if already published (non-fatal curl)
-            if curl -sf "https://crates.io/api/v1/crates/$name/$version" -o /dev/null; then
-              echo "  ✅ Already on crates.io — skipping"
-              return 0
-            fi
-
-            if [ "${DRY_RUN}" = "true" ]; then
-              echo "  🔍 DRY RUN — would run: cargo publish --manifest-path $manifest"
-              return 0
-            fi
-
-            # Publish with up to 3 retries (handles transient 503s)
-            local attempt=0
-            while true; do
-              attempt=$((attempt + 1))
-              echo "  Publishing (attempt $attempt)..."
-              if cargo publish --manifest-path "$manifest" --no-verify 2>&1; then
-                echo "  ✅ Published $name v$version"
-                return 0
-              fi
-
-              if [ $attempt -ge 3 ]; then
-                echo "  ❌ Failed after 3 attempts"
-                return 1
-              fi
-              echo "  ⚠️  Retrying in 30s..."
-              sleep 30
-            done
-          }
-
-          PUBLISHED_COUNT=0
-          for crate_path in "${CRATES[@]}"; do
-            publish_one "$crate_path"
-            PUBLISHED_COUNT=$((PUBLISHED_COUNT + 1))
-
-            # After every 5 new publishes, pause 65s to clear the rate-limit window
-            if [ $((PUBLISHED_COUNT % 5)) -eq 0 ]; then
-              echo "  ⏳ Rate-limit pause (65s) after $PUBLISHED_COUNT crates..."
-              sleep 65
-            else
-              # Short propagation delay between each publish
-              sleep 20
-            fi
-          done
-
-          echo ""
-          echo "🎉 All crates published successfully!"
+          cargo publish --workspace "${EXCLUDES[@]}" $DRY_RUN_FLAG
