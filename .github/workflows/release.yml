@@ -48,11 +48,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sequentially Publish Crates to Crates.io
+      - name: Publish Workspace to Crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           set -euo pipefail
+
+          if [ -z "${CARGO_REGISTRY_TOKEN:-}" ]; then
+            echo "::error::CARGO_REGISTRY_TOKEN is not set or empty in GitHub Secrets!"
+            echo "Please check: Repo Settings -> Secrets and variables -> Actions -> Repository secrets -> CARGO_REGISTRY_TOKEN"
+            exit 1
+          fi
 
           DRY_RUN="${{ inputs.dry_run }}"
           DRY_RUN_FLAG=""
@@ -61,51 +67,4 @@ jobs:
             echo "Running in DRY RUN mode"
           fi
 
-          # Ordered by dependency graph (leaves first, public facade last)
-          CRATES=(
-            "crates/library/signal"
-            "crates/library/try"
-            "crates/library/core"
-            "crates/library/rt"
-            "crates/compiler/lower"
-            "crates/compiler/codegen"
-            "crates/compiler/macros"
-            "crates/library/std"
-            "crates/facade"
-          )
-
-          for crate_dir in "${CRATES[@]}"; do
-            echo "=========================================================="
-            echo "Publishing: $crate_dir"
-            echo "=========================================================="
-            
-            # Retry loop to handle crates.io index propagation delay
-            MAX_ATTEMPTS=5
-            ATTEMPT=1
-            SUCCESS=false
-
-            while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-              echo "Attempt $ATTEMPT of $MAX_ATTEMPTS..."
-              if cargo publish --package $(cargo metadata --manifest-path "$crate_dir/Cargo.toml" --no-deps --format-version 1 | jq -r '.packages[0].name') $DRY_RUN_FLAG; then
-                SUCCESS=true
-                break
-              else
-                echo "Publish failed. Waiting 20 seconds for crates.io index update..."
-                sleep 20
-                ATTEMPT=$((ATTEMPT + 1))
-              fi
-            done
-
-            if [ "$SUCCESS" != "true" ]; then
-              echo "Failed to publish $crate_dir after $MAX_ATTEMPTS attempts."
-              exit 1
-            fi
-
-            # Crates.io index takes a short while to propagate for downstream dependents
-            if [ "$DRY_RUN" != "true" ]; then
-              echo "Waiting 25 seconds for crates.io index propagation..."
-              sleep 25
-            fi
-          done
-
-          echo "All crates published successfully!"
+          cargo publish --workspace --token "$CARGO_REGISTRY_TOKEN" $DRY_RUN_FLAG
