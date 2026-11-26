@@ -587,7 +587,7 @@ fn disjoint_borrow() {
 
 // BUG: lower causes delay in drop
 #[test]
-#[cfg_attr(miri, ignore)]
+#[ignore = "delayed drop in lowering under relaxed-drop policy causes destructor to run after subsequent statements"]
 fn borrow_drop_test() {
     struct HoldOn<'a>(&'a mut String);
 
